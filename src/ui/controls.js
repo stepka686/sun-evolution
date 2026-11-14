@@ -97,6 +97,8 @@ export function initControls() {
     setTimeout(sync, 0);
     setInterval(sync, 3000);          // контекст могли потерять или вернуть — подпись следит за этим
   }
+  const pbtn = document.getElementById('perceptionBtn');
+  if (pbtn) pbtn.addEventListener('click', () => { S.perception = S.perception === 'camera' ? 'eye' : 'camera'; pbtn.classList.toggle('active', S.perception === 'camera'); pbtn.innerText = S.perception === 'camera' ? '📷 Камера' : '👁 Глаз'; });
   const lbtn = document.getElementById('lookAwayBtn');
   if (lbtn) lbtn.addEventListener('click', () => { S.lookAway = !S.lookAway; lbtn.classList.toggle('active', S.lookAway); lbtn.innerText = S.lookAway ? '↻ Лицом к звезде' : '↻ Спиной к звезде'; });
   timeOfDaySlider.addEventListener('input', (e) => {

@@ -12,6 +12,7 @@ import { drawSkyGL, drawUpperGL } from '../gl/skyGL.js';
 import { LINE_SCALE, airglowBin, auroraColumns, auroraSpectrum, nlcStrength } from '../physics/upperAtmo.js';
 import { cieGlarePSF } from '../physics/glare.js';
 import { drawCorona } from './corona.js';
+import { SUN_FROM_EARTH, fmtAngle, loupeScale } from './loupe.js';
 import { getAsteroseismicData } from '../model/activity.js';
 import { civilization } from './planetBody.js';
 import { planetLook } from './planetLook.js';
@@ -174,13 +175,16 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   // глаз привыкает не мгновенно: экспозиция догоняет сцену с постоянной времени ~0.6 с (в темноте — медленнее)
   const dtA = Math.min(1, Math.max(0, (now - adapt.t) / 1000)); adapt.t = now;
   const tauA = E0 > adapt.E ? 1.2 : 0.5;
-  const kA = adapt.E ? 1 - Math.exp(-dtA / tauA) : 1;
+  // 5.3.1: режим «Камера» — без особенностей человеческого зрения: экспозиция встаёт сразу, нет блика в глазу
+  // и сумеречного обесцвечивания. Всё, что создаёт атмосфера (ореол в дымке, гало, сумерки), остаётся
+  const cam = S.perception === 'camera';
+  const kA = adapt.E && !cam ? 1 - Math.exp(-dtA / tauA) : 1;
   adapt.E = adapt.E ? Math.exp(Math.log(adapt.E) + (Math.log(E0) - Math.log(adapt.E)) * kA) : E0;
   adapt.lvl = adapt.lvl ? adapt.lvl + (lvl0 - adapt.lvl) * kA : lvl0;
   if (Math.abs(Math.log(E0 / adapt.E)) > 4) { adapt.E = E0; adapt.lvl = lvl0; }   // резкий скачок (смена планеты) — сразу
   const E = adapt.E, lvl = adapt.lvl;
   // доля «ночного» зрения: от ~10⁻³ яркости дня (конец гражданских сумерек) до ~10⁻⁵ (ночь) цвета гаснут
-  const nightVis = clamp01((-Math.log10(Math.max(1e-12, peak / REF_LUM)) - 3) / 2.2);
+  const nightVis = cam ? 0 : clamp01((-Math.log10(Math.max(1e-12, peak / REF_LUM)) - 3) / 2.2);
   // Однократное рассеяние на экране выглядит бледнее, чем глазу: подкрашиваем только рэлеевские небеса
   const SAT = (optics.kind === 'air' || optics.kind === 'ice') ? 1.7 : 1.1;
   const disp = (lin, sat = SAT) => toDisplay(lin, E, sat).map(v => v * lvl);
@@ -271,7 +275,7 @@ export function drawSurfaceView(ctx, w, h, state, now) {
     // ~0.05 ср⁻¹ × π), поэтому блик = π·PSF·прямой свет. Радиус — пока блик заметен на экране (≥ 1/255)
     // Блик складывается с небом в линейной яркости, на экран идёт только прибавка: где небо и так светлое, его не видно
     const hsG = Math.max(0.01, hs);
-    drawGlare(ctx, sunX, sunYd, sunR, pxPerRad, (th) => {
+    if (!cam) drawGlare(ctx, sunX, sunYd, sunR, pxPerRad, (th) => {
       const bg = optics.cloud ? [0, 0, 0] : sky(Math.min(1.5, hsG + th * D2R * 0.5), Math.cos(th * D2R));
       // Ореол — свет, рассеянный в самом глазу, а не в небе, поэтому он есть и в вакууме
       const veil = scale(direct, Math.PI * cieGlarePSF(th));
@@ -311,6 +315,9 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   }
   // Луна поверх звезды (затмение), корона при полном затмении
   if (moon) drawMoon(ctx, moon, disp, F, optics, sunX, sunY, sunR, horizonY, sunAngR, directLight(F, optics, Math.max(0, hs)), state);
+
+  // 10a. Лупа режима «Камера»: диск звезды и эталон — Солнце с Земли (0.53°) в одном масштабе
+  if (cam && sunY < horizonY + sunR) drawStarLoupe(ctx, w, sunX, sunY, sunAngR, toDisplayDirect(directLight(F, optics, Math.max(0, hs))), state);
 
   // 11. Крупные тела в небе спутников
   drawHostPlanet(ctx, w, h, planet, horizonY, lvl, optics);
@@ -661,6 +668,33 @@ function drawNightSky(ctx, w, horizonY, now, projEq, frame, optics, starAlpha, s
 }
 
 // ---------- сияния, компаньон, хозяин-гигант, метеоры ----------
+// ---------- лупа режима «Камера» ----------
+function drawStarLoupe(ctx, w, sx, sy, angR, dc, state) {
+  const R = 42, L = loupeScale(angR, SUN_FROM_EARTH, R - 4);
+  const ix = sx + 110 < w - R - 10 ? sx + 110 : sx - 110, iy = Math.max(R + 120, sy - 70);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(148,163,184,0.45)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ix, iy); ctx.stroke();
+  ctx.fillStyle = 'rgba(2,6,23,0.9)'; ctx.beginPath(); ctx.arc(ix, iy, R + 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // звезда: диск в настоящем масштабе лупы; меньше пикселя — точка
+  ctx.fillStyle = rgb(Math.max(60, dc[0]), Math.max(60, dc[1]), Math.max(60, dc[2]));
+  ctx.beginPath(); ctx.arc(ix, iy, Math.max(0.8, L.rStar), 0, Math.PI * 2); ctx.fill();
+  // эталон — пунктир: Солнце с Земли
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(253,224,71,0.85)';
+  ctx.beginPath(); ctx.arc(ix, iy, Math.max(1, L.rRef), 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+  const ratio = angR / SUN_FROM_EARTH;
+  const lines = [`звезда ${fmtAngle(angR)}`, 'пунктир — Солнце с Земли 0.53°',
+    Math.abs(ratio - 1) < 0.05 ? 'как Солнце с Земли' : ratio >= 1 ? `в ${ratio.toFixed(ratio < 10 ? 1 : 0)} раза больше` : ratio > 0.01 ? `в ${(1 / ratio).toFixed(1 / ratio < 10 ? 1 : 0)} раза меньше` : `в ${Math.round(1 / ratio).toLocaleString('ru')} раз меньше — точка`];
+  ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  const tw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 10;
+  const tx = Math.min(w - tw / 2 - 4, Math.max(tw / 2 + 4, ix)), ty = iy + R + 8;
+  ctx.fillStyle = 'rgba(2,6,23,0.8)'; ctx.fillRect(tx - tw / 2, ty, tw, lines.length * 12 + 6);
+  ctx.fillStyle = '#cbd5e1';
+  lines.forEach((t, k) => ctx.fillText(t, tx, ty + 13 + k * 12));
+  ctx.restore();
+}
+
 // ---------- полярное сияние ----------
 function auroraState(planet, state, exo, climate, atmoNow, hs, now) {
   const cme = isPlanetHitByCME(planet, state);
@@ -1016,6 +1050,7 @@ function drawCaption(ctx, w, h, state, sunAngR, moon, locked, optics, climate, p
   const deg = (r) => (2 * r * 180 / Math.PI);
   const fmt = (d) => d >= 10 ? d.toFixed(0) + '°' : d >= 1 ? d.toFixed(1) + '°' : d >= 0.01 ? d.toFixed(2) + '°' : (d * 3600).toFixed(1) + '″';
   const lines = [`${star ? star.name : 'Звезда'}: угловой диаметр ${fmt(deg(sunAngR))} (Солнце с Земли — 0.53°)`];
+  if (S.perception === 'camera') lines.push('Камера: без блика в глазу и сумеречного зрения; сияние — как на снимке с выдержкой ~2 с');
   const SKY = { vacuum: 'вакуум — небо чёрное и днём', air: 'рэлеевское рассеяние', ice: 'рэлеевское рассеяние, планета подо льдом', dust: 'пыль: небо цвета ириски, закат голубой', haze: 'органическая дымка (толины)', sulfuric: 'облака серной кислоты: звезды не видно', steam: 'паровая атмосфера: сплошная облачность', thick: 'плотная облачная атмосфера', methane: 'метан поглощает красный свет', vapor: 'пары силикатов над лавой' };
   lines.push(`Небо: ${SKY[optics.kind] || optics.kind} • ${climate.atmo.pBar >= 0.01 ? climate.atmo.pBar.toPrecision(3) + ' бар' : 'p ≈ 0'}`);
   if (moon) lines.push(`Луна: ${fmt(deg(moon.angR))}, ${(moonDistanceKm(state.t) / 1000).toFixed(0)} тыс. км — ${moon.kind === 'total' ? 'полные затмения ещё возможны' : 'полных затмений больше нет, только кольцеобразные'}`);
