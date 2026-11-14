@@ -4,7 +4,7 @@
 
 ## Быстрый старт
 
-Нужен [Node.js](https://nodejs.org) 20 или новее.
+Нужен [Node.js](https://nodejs.org) 22 или новее (маски в `node --test` появились в 21).
 
 ```bash
 npm install        # один раз: ставит сборщик esbuild
