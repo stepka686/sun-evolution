@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000205">
+  <title>Эволюция Солнца 5.2 — Астрофизическая лаборатория</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-top">
+    <div class="title-area">
+        <h1>Эволюция Солнца 5.2</h1>
+        <p>Каталог 32 звёзд • Палеоклимат и атмосферы миров • Физическая телеметрия СИ</p>
+      </div>
+
+<div class="header-actions">
+        <button class="action-btn" id="cinemaBtn" title="Кинорежим: ключевые моменты жизни звезды">🎬 Кино</button>
+        <button class="action-btn" id="cinemaRecBtn" title="Пройти кинорежим и сохранить видео">⏺ Записать</button>
+        <button class="action-btn" id="formulaBtn" title="Формулы: откуда берётся каждое число">ƒ Формулы</button>
+        <button class="action-btn active" id="gpuBtn" title="Рендер на видеокарте (WebGL) или на процессоре (Canvas 2D)">⚡ GPU</button>
+        <button class="action-btn" id="sidebarToggleBtn">Данные ▤</button>
+        <button class="action-btn" id="soundBtn">Звук: Выкл</button>
+        <button class="action-btn" id="screenshotBtn">Снимок</button>
+      </div>
+    </div>
+
+    <div id="hrOverlay" class="hr-overlay" style="display: none;">
+      <div class="hr-overlay-head">
+        <strong>Диаграмма Герцшпрунга — Рассела <span style="font-weight: 400; color: #94a3b8; font-size: 0.72rem;">— тяните по треку, чтобы двигать время</span></strong>
+        <button class="action-btn" id="hrCloseBtn" style="padding: 2px 10px;">✕</button>
+      </div>
+      <canvas id="hrBigCanvas"></canvas>
+    </div>
+
+    <div id="telescopeOverlay" class="hr-overlay" style="display: none;">
+      <div class="hr-overlay-head">
+        <strong>Транзитная спектроскопия <span style="font-weight: 400; color: #94a3b8; font-size: 0.72rem;">— спектр меняется вместе с атмосферой</span></strong>
+        <button class="action-btn" id="telescopeCloseBtn" style="padding: 2px 10px;">✕</button>
+      </div>
+      <canvas id="telescopeCanvas" style="flex: 1; width: 100%; min-height: 0; border-radius: 8px; touch-action: none;"></canvas>
+    </div>
+
+    <div id="formulaPanel" class="formula-panel" style="display: none;">
+      <div class="formula-head">
+        <strong>ƒ Формулы <span style="font-weight: 400; color: #94a3b8; font-size: 0.7rem;">— нажимайте на карточки величин</span></strong>
+        <button class="action-btn" id="closeFormulaBtn" style="padding: 2px 8px;">✕</button>
+      </div>
+      <div class="formula-tabs pill-group" id="formulaTabs"></div>
+      <div class="formula-body" id="formulaBody"></div>
+    </div>
+
+    <div class="nav-scroll-bar">
+      <button class="action-btn active" id="starCatalogBtn">Звезда: Солнце (1.0 M☉) ★</button>
+             <button class="action-btn" id="binarySysBtn">Двойная система: Выкл</button>
+      <button class="action-btn" id="exoplanetBtn">Экзопланета +</button>
+      <button class="action-btn" id="nucleoBtn">Нуклеосинтез ⚛</button>
+      <button class="action-btn" id="gwDetectorBtn">GW-детектор: Выкл</button>
+      <div class="pill-group" id="viewModeGroup">
+        <button class="pill-item active" data-view="space">Космос</button>
+
+        <button class="pill-item" data-view="orbit">Орбита</button>
+        <button class="pill-item" data-view="surface">Поверхность</button>
+        <button class="pill-item" data-view="moon">С Луны</button>
+        <button class="pill-item" data-view="galaxy">Галактика</button>
+        <button class="pill-item" data-view="interstellar">α Центавра</button>
+      </div>
+
+      <div class="pill-group" id="planetGroup">
+        <button class="pill-item data-planet" data-planet="mercury">Меркурий</button>
+        <button class="pill-item data-planet" data-planet="venus">Венера</button>
+        <button class="pill-item data-planet active" data-planet="earth">Земля</button>
+        <button class="pill-item data-planet" data-planet="mars">Марс</button>
+        <button class="pill-item data-planet" data-planet="europa">Европа</button>
+        <button class="pill-item data-planet" data-planet="titan">Титан</button>
+                <button class="pill-item data-planet" data-planet="uranus">Уран</button>
+        <button class="pill-item data-planet" data-planet="neptune">Нептун</button>
+        <button class="pill-item data-planet" data-planet="pluto">Плутон</button>
+        <button class="pill-item data-planet" data-planet="haumea">Хаумеа</button>
+        <button class="pill-item data-planet" data-planet="makemake">Макемаке</button>
+        <button class="pill-item data-planet" data-planet="eris">Эрида</button>
+
+      </div>
+
+      <div class="pill-group" id="focusGroup">
+        <button class="pill-item active" data-focus="sun">Солнце</button>
+        <button class="pill-item" data-focus="mercury">Меркурий</button>
+        <button class="pill-item" data-focus="venus">Венера</button>
+        <button class="pill-item" data-focus="earth">Земля</button>
+        <button class="pill-item" data-focus="mars">Марс</button>
+        <button class="pill-item" data-focus="europa">Европа</button>
+        <button class="pill-item" data-focus="titan">Титан</button>
+                <button class="pill-item" data-focus="uranus">Уран</button>
+        <button class="pill-item" data-focus="neptune">Нептун</button>
+        <button class="pill-item" data-focus="pluto">Плутон</button>
+        <button class="pill-item" data-focus="haumea">Хаумеа</button>
+        <button class="pill-item" data-focus="makemake">Макемаке</button>
+        <button class="pill-item" data-focus="eris">Эрида</button>
+        <button class="pill-item" data-focus="oort">Облако Оорта</button>
+      </div>
+
+      <button class="action-btn active" id="toggleHelioBtn">Гелиосфера</button>
+      <button class="action-btn active" id="auroraBtn">Сияния: Вкл</button>
+      <button class="action-btn" id="expeditionBtn">Экспедиция</button>
+      <button class="action-btn" id="hydroEqBtn">Баланс сил</button>
+      <button class="action-btn" id="earthFateBtn" title="Сила приливного трения в оболочке гиганта (теория неточна в разы). Судьба Земли рассчитывается интегрированием орбиты.">Приливы ×1</button>
+      <button class="action-btn" id="deepTimeBtn">Глубокое время</button>
+      <button class="action-btn active" id="toggleHzBtn">Зона жизни</button>
+      <button class="action-btn" id="toggleCutawayBtn">Разрез</button>
+      <button class="action-btn" id="scaleModalBtn">Масштабы</button>
+      <button class="action-btn" id="resetCamBtn">Сброс вида</button>
+      <button class="action-btn" id="passportBtn">Паспорт 🗎</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="display-card">
+      <canvas id="mainCanvas"></canvas>
+
+      <div class="expedition-card" id="expeditionCard">
+        <div class="expedition-header">
+          <span class="expedition-title" id="expTitle">1. Зарождение Солнечной системы</span>
+          <span class="expedition-step-tag" id="expStepTag">Шаг 1 из 9</span>
+        </div>
+        <div class="expedition-text" id="expText"></div>
+        <div class="expedition-actions">
+          <button class="exp-nav-btn" id="expPrevBtn">Назад</button>
+          <button class="exp-nav-btn" id="expExitBtn">Выйти из тура</button>
+          <button class="exp-nav-btn primary" id="expNextBtn">Далее</button>
+        </div>
+      </div>
+           <div class="scale-modal" id="starCatalogModal" style="display: none;">
+        <div class="scale-modal-header">
+          <h2>Астрофизический каталог звёзд (32 светила)</h2>
+          <button class="close-modal-btn" id="closeCatalogModalBtn">Закрыть ✕</button>
+        </div>
+        <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none;" id="catalogFilterGroup">
+          <button class="action-btn active" data-cat="all">Все (32)</button>
+          <button class="action-btn" data-cat="dwarf">Карлики (M)</button>
+          <button class="action-btn" data-cat="solar">Солнечные (G/K)</button>
+          <button class="action-btn" data-cat="hot">Горячие (A/B)</button>
+          <button class="action-btn" data-cat="giant">Гиганты</button>
+          <button class="action-btn" data-cat="supergiant">Сверхгиганты</button>
+          <button class="action-btn" data-cat="exotic">Экзотика ✦</button>
+        </div>
+
+        <div style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 8px 10px; margin-top: 6px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 0.78rem; color: #93c5fd;">Конструктор светила (Star Forge)</strong>
+            <span style="font-size: 0.75rem; color: #facc15; font-family: monospace;" id="forgeMassVal">1.50 M☉</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="forgeNameInput" placeholder="Имя звезды..." value="Сверхновая-X" style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; color: #fff;">
+            <button class="action-btn active" id="forgeCreateBtn" style="padding: 4px 10px;">Создать ✦</button>
+          </div>
+          <input type="range" id="forgeMassSlider" min="0.02" max="250.0" step="0.01" value="1.50">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.72rem; color: #94a3b8;">Металличность [Fe/H] <span style="color:#64748b">(−2 — бедная металлами звезда гало, +0.5 — богатая)</span></span>
+            <span style="font-size: 0.75rem; color: #facc15; font-family: monospace;" id="forgeFehVal">+0.00 (Z = 0.0142)</span>
+          </div>
+          <input type="range" id="forgeFehSlider" min="-2.0" max="0.5" step="0.05" value="0">
+        </div>
+
+        <div id="starCatalogGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-top: 10px; max-height: calc(85vh - 200px); overflow-y: auto;"></div>
+      </div>
+
+ <div class="scale-modal" id="exoplanetModal" style="display: none;">
+        <div class="scale-modal-header">
+          <h2>Конструктор экзопланет (Exoplanet Forge)</h2>
+          <button class="close-modal-btn" id="closeExoModalBtn">Закрыть ✕</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; padding: 6px 0;">
+          <div>
+            <label style="font-size: 0.75rem; color: #94a3b8;">Имя планеты:</label>
+            <input type="text" id="exoNameInput" value="Кеплер-X" style="width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; margin-top: 4px;">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: #94a3b8;">Класс мира:</label>
+            <select id="exoTypeSelect" style="width: 100%; background: #0b1329; border: 1px solid rgba(255,255,255,0.2); color: #60a5fa; border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; margin-top: 4px;">
+              <option value="hot_jupiter">Горячий юпитер (газовый гигант с гидродинамическим хвостом)</option>
+              <option value="ocean_world">Планета-океан (толща воды 100 км)</option>
+              <option value="super_earth">Суперземля (магнитный щит, силикаты)</option>
+              <option value="chthonian">Хтоническая планета (оголённое ядро из лавы и железа)</option>
+            </select>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #94a3b8;">
+              <span>Орбитальное расстояние:</span>
+              <strong id="exoDistVal" style="color: #38bdf8;">0.25 а.е.</strong>
+            </div>
+            <input type="range" id="exoDistSlider" min="0.05" max="18.0" step="0.05" value="0.25" style="margin-top: 6px;">
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="action-btn active" id="createExoBtn" style="flex: 1; justify-content: center; padding: 8px;">Создать планету ✦</button>
+            <button class="action-btn" id="clearExoBtn" style="padding: 8px 12px; color: #f87171;">Очистить все</button>
+          </div>
+        </div>
+      </div>
+      <div class="scale-modal" id="nucleoModal" style="display: none;">
+        <div class="scale-modal-header">
+          <h2>Звёздный нуклеосинтез и обогащение Галактики</h2>
+          <button class="close-modal-btn" id="closeNucleoModalBtn">Закрыть ✕</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 6px 0;">
+          <p style="font-size: 0.78rem; color: #94a3b8; line-height: 1.4;">
+            Масса химических элементов, синтезированных термоядерными реакциями и выброшенных в межзвёздную среду для формирования планет следующих поколений:
+          </p>
+          <div id="nucleoResultsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;"></div>
+        </div>
+      </div>
+
+      <div class="scale-modal" id="scaleModal">
+        <div class="scale-modal-header">
+          <h2>Сравнение космических масштабов</h2>
+          <button class="close-modal-btn" id="closeScaleModalBtn">Закрыть ✕</button>
+        </div>
+        <div class="scale-visual-area">
+          <div class="scale-row">
+            <span class="scale-row-name">Меркурий (0.38 R⊕)</span>
+            <div class="scale-row-bar-wrap">
+              <div class="scale-row-fill" style="width: 0.2%; background: #94a3b8;"></div>
+              <span class="scale-row-val">Ø 4 879 км (R = 0.0035 R☉)</span>
+            </div>
+          </div>
+          <div class="scale-row">
+            <span class="scale-row-name">Земля (1 R⊕)</span>
+            <div class="scale-row-bar-wrap">
+              <div class="scale-row-fill" style="width: 0.5%; background: #60a5fa;"></div>
+              <span class="scale-row-val">Ø 12 742 км (R = 0.0092 R☉)</span>
+            </div>
+          </div>
+          <div class="scale-row">
+            <span class="scale-row-name">Плутон (0.18 R⊕)</span>
+            <div class="scale-row-bar-wrap">
+              <div class="scale-row-fill" style="width: 0.15%; background: #c084fc;"></div>
+              <span class="scale-row-val">Ø 2 376 км (R = 0.0017 R☉)</span>
+            </div>
+          </div>
+          <div class="scale-row">
+            <span class="scale-row-name">Юпитер (11 R⊕)</span>
+            <div class="scale-row-bar-wrap">
+              <div class="scale-row-fill" style="width: 3.5%; background: #fbbf24;"></div>
+              <span class="scale-row-val">Ø 139 820 км (R = 0.10 R☉)</span>
+            </div>
+          </div>
+          <div class="scale-row">
+            <span class="scale-row-name">Текущее Солнце</span>
+            <div class="scale-row-bar-wrap">
+              <div class="scale-row-fill" id="scaleBarCurrentSun" style="width: 25%; background: #f97316;"></div>
+              <span class="scale-row-val" id="scaleValCurrentSun">1.00 R☉ (696 340 км)</span>
+            </div>
+          </div>
+          <div class="scale-row">
+            <span class="scale-row-name">Орбита Земли (1 а.е.)</span>
+            <div class="scale-row-bar-wrap">
+              <div class="scale-row-fill" style="width: 75%; background: rgba(255,255,255,0.2);"></div>
+              <span class="scale-row-val">215 R☉ (149.6 млн км)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view-toolbar-top-right">
+        <div class="tool-box" id="spaceTiltBox">
+          <label for="pitchSlider">3D:</label>
+          <input type="range" id="pitchSlider" min="0" max="75" step="1" value="0">
+        </div>
+        <div class="tool-box" id="surfaceTimeToolbar" style="display: none;">
+          <label for="timeOfDaySlider"><span id="timeOfDayVal">12:00</span></label>
+          <input type="range" id="timeOfDaySlider" min="0" max="24" step="0.1" value="12.0">
+          <label for="dayOfYearSlider"><span id="dayOfYearVal">15 апреля</span></label>
+          <input type="range" id="dayOfYearSlider" min="1" max="365" step="1" value="105">
+          <button class="action-btn" id="constellationsBtn" style="padding: 2px 8px; font-size: 0.7rem;">✦ Созвездия</button>
+          <button class="action-btn" id="lookAwayBtn" style="padding: 2px 8px; font-size: 0.7rem;" title="Развернуться спиной к звезде">↻ Спиной к звезде</button>
+        </div>
+      </div>
+
+      <div class="hud-stack" id="hudStack">
+        <button class="hud-toggle-btn" id="hudCollapseBtn" title="Свернуть/развернуть телеметрию">▼</button>
+        <div class="hud-pill" id="cameraHudBadge">Космос • Солнце</div>
+        <div class="hud-pill hud-esi-pill" id="esiBadge">
+          <span>ESI: <strong id="esiValueText" style="color: #22c55e;">1.000</strong></span>
+          <span class="esi-bar-mini"><span class="esi-bar-marker" id="esiMarker" style="left: 100%;"></span></span>
+        </div>
+        <div class="hud-pill hud-temp-pill" id="surfaceTempBadge">+15°C</div>
+        <div class="hud-pill hud-hz-status hud-collapsible" id="hzStatusBadge">В зоне жизни</div>
+        <div class="hud-pill hud-flux-pill hud-collapsible" id="fluxBadge">1 361 Вт/м²</div>
+        <div class="hud-pill hud-escape-pill hud-collapsible" id="atmoEscapeBadge">Утечка: 3.2 кг/с</div>
+        <div class="hud-pill hud-bio-pill hud-collapsible" id="bioStatusBadge">Биосфера: Процветание</div>
+        <div class="hud-pill hud-interstellar-pill" id="interstellarBadge" style="display: none;">α Центавра (4.37 св. года)</div>
+        <div class="hud-pill hud-eq-pill hud-collapsible" id="hydroEqBadge" style="display: none;">F_грав = P_излуч</div>
+      </div>
+      <div class="cam-instructions" id="camHint">Колесико/щипок: зум • Перетаскивание: панорама</div>
+    </div>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-mobile-close">
+        <span style="font-size: 0.72rem; font-weight: 600; color: #93c5fd;">Панель</span>
+        <button class="action-btn" id="closeSidebarBtn" style="padding: 2px 6px; font-size: 0.7rem;">✕</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-headline">
+          <span>Физика звезды</span>
+          <span id="spectralClassBadge" style="color: #60a5fa;">G2V</span>
+        </div>
+                <div class="metrics-grid">
+          <div class="metric-cell">
+            <span class="metric-name">Возраст</span>
+            <span class="metric-value" id="valAge">4.60</span>
+            <span class="metric-unit" id="ageUnitText">млрд лет</span>
+            <span class="metric-sub" id="subAge">Главная последовательность</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Радиус</span>
+            <span class="metric-value" id="valRadius">1.00</span>
+            <span class="metric-unit">R☉</span>
+            <span class="metric-sub" id="subRadius">696 340 км (0.0047 а.е.)</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Светимость</span>
+            <span class="metric-value" id="valLum">1.00</span>
+            <span class="metric-unit">L☉</span>
+            <span class="metric-sub" id="subLum">3.83×10²⁶ Вт • M_bol +4.74</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Температура</span>
+            <span class="metric-value" id="valTemp">5778</span>
+            <span class="metric-unit">K</span>
+            <span class="metric-sub" id="subTemp">+5 505 °C • λ_max 502 нм</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Масса и плотность</span>
+            <span class="metric-value" id="valMass">1.00</span>
+            <span class="metric-unit">M☉</span>
+            <span class="metric-sub" id="subMass">ρ: 1.41 г/см³ • log g: 4.44</span>
+          </div>
+                    <div class="metric-cell">
+            <span class="metric-name">Зона жизни</span>
+            <span class="metric-value" id="valHzDist">0.98 - 1.69</span>
+            <span class="metric-unit">а.е.</span>
+            <span class="metric-sub" id="subHz">147 - 253 млн км</span>
+          </div>
+        </div>
+
+        <div class="composition-bar-wrap">
+          <div class="composition-labels">
+            <span>Ядро: <strong id="hPctText">H 35%</strong> | <strong id="hePctText">He 63%</strong></span>
+            <span><strong id="coPctText">C/O 2%</strong></span>
+          </div>
+          <div class="composition-bar">
+            <div class="comp-seg comp-h" id="barH" style="width: 35%;"></div>
+            <div class="comp-seg comp-he" id="barHe" style="width: 63%;"></div>
+            <div class="comp-seg comp-c" id="barC" style="width: 1%;"></div>
+            <div class="comp-seg comp-o" id="barO" style="width: 1%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-headline">
+          <span id="planetAtmoTitle">Земля • Атмосфера</span>
+          <span id="planetPressureVal" style="color: #38bdf8; font-family: monospace;">1.01 бар</span>
+        </div>
+        <div class="bio-status-card" id="bioStatusCard" style="margin-top: 0;">
+          <div class="bio-metric-row">
+            <span id="planetGeoEventText" style="color: #cbd5e1; font-size: 0.64rem;">Эра: Кайнозой (ледниковые циклы)</span>
+          </div>
+          <div class="atmo-gas-bar" id="atmoGasBar"></div>
+          <div class="gas-list" id="atmoGasLegend"></div>
+          <canvas class="atmo-profile" id="atmoProfileCanvas"></canvas>
+          <button class="action-btn" id="telescopeBtn" style="width: 100%; padding: 4px 8px; font-size: 0.7rem; margin-bottom: 6px;">🔭 Спектр глазами чужого телескопа</button>
+          <div class="bio-metric-row">
+            <span>Биосфера: <strong id="bioEraText" style="color: #6ee7b7;">Процветание</strong></span>
+            <span style="font-size: 0.58rem; color: #64748b;">O₂: <span id="bioO2Val">20.9%</span> | CO₂: <span id="bioCO2Val">420 ppm</span></span>
+          </div>
+          <div class="bio-bar-wrap">
+            <div class="bio-bar-fill" id="bioBarFill" style="width: 100%; background: #10b981;"></div>
+          </div>
+        </div>
+        <div class="description-box" id="phaseDescription">
+          Главная последовательность. В ядре стабильно протекает протон-протонный цикл.
+        </div>
+      </div>
+
+
+      <div class="panel">
+        <div class="panel-headline">
+          <span>Диаграмма Герцшпрунга — Рассела</span>
+          <button class="action-btn" id="hrFullBtn" style="padding: 2px 8px; font-size: 0.65rem;">⤢ Во весь экран</button>
+        </div>
+        <div class="chart-container">
+          <canvas id="hrCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-headline">
+          <span>Транзит выбранной планеты</span>
+          <span style="color: #64748b; font-size: 0.62rem;">как ищут экзопланеты</span>
+        </div>
+        <div class="chart-container" style="height: 150px;">
+          <canvas id="transitCanvas"></canvas>
+        </div>
+        <div id="transitInfo" style="font-size: 0.68rem; color: #94a3b8; margin-top: 6px; line-height: 1.4;"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-headline">
+          <span id="spectrumHeadlineText">Спектр</span>
+          <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+            <span id="peakWavelengthText" style="color: #cbd5e1; font-weight: normal; font-size: 0.62rem;">λ: 502 нм</span>
+            <button class="action-btn" id="spectrumModeToggleBtn" style="padding: 2px 5px; font-size: 0.62rem;">Звезда</button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="planckCanvas"></canvas>
+        </div>
+        <div class="spectrum-bar-wrap">
+          <canvas id="spectrumCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-headline">
+          <span>Эволюционные кривые (R, T, M)</span>
+          <span style="color: #94a3b8; font-size: 0.65rem;">R (Cyan) • T (Yellow) • M (Green)</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="curvesCanvas"></canvas>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="footer-controls">
+    <div class="timeline-scrubber-bar">
+      <button class="playback-round-btn" id="playBtn" title="Воспроизведение">
+        <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </button>
+
+      <div class="slider-track-container">
+        <input type="range" id="timeSlider" min="-0.05" max="13.0" step="0.002" value="4.60">
+      </div>
+    </div>
+
+    <div class="speed-and-presets">
+      <div class="custom-speed-box">
+        <label for="speedSlider">Скорость:</label>
+        <input type="range" id="speedSlider" min="0.01" max="15.0" step="0.05" value="1.0">
+        <input type="number" id="speedNumber" min="0.01" max="50.0" step="0.1" value="1.0">
+        <label>x</label>
+      </div>
+
+      <div class="granular-presets" id="milestonesContainer"></div>
+    </div>
+  </div>
+
+  <!-- В разработке модули грузятся браузером напрямую (нужен локальный сервер: npm run dev). Сборка встраивает всё в один файл. -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
