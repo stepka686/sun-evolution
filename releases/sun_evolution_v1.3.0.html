@@ -1,0 +1,2137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Эволюция Солнца 4.0 — Исследовательская обсерватория</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: #02040a;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 10px 18px;
+      background: rgba(6, 10, 20, 0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      z-index: 30;
+    }
+
+    .title-area h1 {
+      font-size: 1.12rem;
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.03em;
+    }
+
+    .title-area p {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .action-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      padding: 5px 11px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .action-btn.active {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+    }
+
+    .pill-group {
+      display: flex;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .pill-item {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 4px 9px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pill-item.active {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 12px;
+      padding: 12px;
+      position: relative;
+    }
+
+    @media (max-width: 1040px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .display-card {
+      position: relative;
+      background: #000205;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      min-height: 540px;
+      display: flex;
+    }
+
+    canvas#mainCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    .hud-stack {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .hud-pill {
+      background: rgba(4, 8, 16, 0.78);
+      backdrop-filter: blur(8px);
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+    }
+
+    .hud-hz-status {
+      border-color: rgba(34, 197, 94, 0.35);
+      color: #86efac;
+    }
+
+    .hud-temp-pill {
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fde68a;
+    }
+
+    .cam-instructions {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(4, 8, 16, 0.65);
+      backdrop-filter: blur(6px);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      color: #64748b;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      pointer-events: none;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel {
+      background: rgba(8, 13, 24, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 13px;
+    }
+
+    .panel-headline {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 9px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric-cell {
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+
+    .metric-name {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .metric-value {
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-unit {
+      font-size: 0.7rem;
+      color: #64748b;
+      margin-left: 2px;
+    }
+
+    .description-box {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #cbd5e1;
+      border-left: 2px solid #3b82f6;
+      padding-left: 8px;
+    }
+
+    .composition-bar-wrap {
+      margin-top: 10px;
+    }
+
+    .composition-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .composition-bar {
+      width: 100%;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      display: flex;
+      background: #1e293b;
+    }
+
+    .comp-seg {
+      height: 100%;
+      transition: width 0.1s ease;
+    }
+
+    .comp-h { background: #3b82f6; }
+    .comp-he { background: #f59e0b; }
+    .comp-c { background: #10b981; }
+    .comp-o { background: #ec4899; }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 125px;
+    }
+
+    canvas#planckCanvas, canvas#hrCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .footer-controls {
+      padding: 12px 18px 16px 18px;
+      background: rgba(6, 10, 20, 0.96);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 30;
+    }
+
+    .timeline-scrubber-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .playback-round-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #2563eb;
+      border: none;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .playback-round-btn:active {
+      transform: scale(0.94);
+    }
+
+    .slider-track-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+
+    input[type=range]:focus {
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 7px;
+      cursor: pointer;
+      background: #1e293b;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      height: 17px;
+      width: 17px;
+      border-radius: 50%;
+      background: #60a5fa;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -5.5px;
+      box-shadow: 0 0 10px rgba(96, 165, 250, 0.7);
+      transition: transform 0.1s;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.18);
+    }
+
+    .timeline-ticks-container {
+      position: relative;
+      width: 100%;
+      height: 18px;
+      margin-top: 2px;
+    }
+
+    .tick-item {
+      position: absolute;
+      top: 0;
+      font-size: 0.68rem;
+      color: #64748b;
+      white-space: nowrap;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .tick-item.edge-left {
+      transform: translateX(0);
+    }
+
+    .tick-item.edge-right {
+      transform: translateX(-100%);
+    }
+
+    .speed-and-presets {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .speed-group {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .speed-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .speed-btn.active {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+
+    .granular-presets {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      flex: 1;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .granular-presets::-webkit-scrollbar {
+      display: none;
+    }
+
+    .milestone-tag {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: #94a3b8;
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .milestone-tag:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .milestone-tag.active {
+      border-color: #3b82f6;
+      color: #93c5fd;
+      background: rgba(59, 130, 246, 0.15);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-area">
+      <h1>Эволюция Солнца 4.0</h1>
+      <p>Астрофизическая модель полного цикла со спектрометрией</p>
+    </div>
+
+    <div class="nav-bar">
+      <button class="action-btn active" id="viewSpaceBtn">Космос</button>
+      <div class="pill-group" id="planetGroup">
+        <button class="pill-item" data-planet="earth">Земля</button>
+        <button class="pill-item" data-planet="mars">Марс</button>
+        <button class="pill-item" data-planet="europa">Европа</button>
+      </div>
+      <div class="pill-group" id="focusGroup">
+        <button class="pill-item active" data-focus="sun">Фокус: Солнце</button>
+        <button class="pill-item" data-focus="earth">Земля</button>
+        <button class="pill-item" data-focus="mars">Марс</button>
+        <button class="pill-item" data-focus="europa">Европа</button>
+      </div>
+      <button class="action-btn active" id="toggleHzBtn">Зона жизни</button>
+      <button class="action-btn" id="toggleCutawayBtn">Разрез</button>
+      <button class="action-btn" id="soundBtn">Звук: Выкл</button>
+      <button class="action-btn" id="screenshotBtn" title="Сохранить HD-снимок">Снимок</button>
+      <button class="action-btn" id="resetCamBtn" title="Сбросить масштаб">Сброс вида</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="display-card">
+      <canvas id="mainCanvas"></canvas>
+      <div class="hud-stack">
+        <div class="hud-pill" id="cameraHudBadge">Орбитальная плоскость • Фокус: Солнце</div>
+        <div class="hud-pill hud-temp-pill" id="surfaceTempBadge">Температура Земли: +15°C</div>
+        <div class="hud-pill hud-hz-status" id="hzStatusBadge">Земля в зоне обитаемости</div>
+      </div>
+      <div class="cam-instructions" id="camHint">Колесико мыши / щипок — масштаб • Зажать и перетаскивать — панорама</div>
+    </div>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="panel-headline">
+          <span>Физика звезды</span>
+          <span id="spectralClassBadge" style="color: #60a5fa;">G2V</span>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-cell">
+            <span class="metric-name">Возраст</span>
+            <span class="metric-value" id="valAge">4.60</span>
+            <span class="metric-unit">млрд лет</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Радиус</span>
+            <span class="metric-value" id="valRadius">1.00</span>
+            <span class="metric-unit">R☉</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Светимость</span>
+            <span class="metric-value" id="valLum">1.00</span>
+            <span class="metric-unit">L☉</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Температура</span>
+            <span class="metric-value" id="valTemp">5778</span>
+            <span class="metric-unit">K</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Масса звезды</span>
+            <span class="metric-value" id="valMass">1.00</span>
+            <span class="metric-unit">M☉</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Зона обитаемости</span>
+            <span class="metric-value" id="valHzDist">0.95 - 1.37</span>
+            <span class="metric-unit">а.е.</span>
+          </div>
+        </div>
+
+        <div class="composition-bar-wrap">
+          <div class="composition-labels">
+            <span>Ядро: <strong id="hPctText">H 35%</strong> | <strong id="hePctText">He 63%</strong></span>
+            <span><strong id="coPctText">C/O 2%</strong></span>
+          </div>
+          <div class="composition-bar">
+            <div class="comp-seg comp-h" id="barH" style="width: 35%;"></div>
+            <div class="comp-seg comp-he" id="barHe" style="width: 63%;"></div>
+            <div class="comp-seg comp-c" id="barC" style="width: 1%;"></div>
+            <div class="comp-seg comp-o" id="barO" style="width: 1%;"></div>
+          </div>
+        </div>
+
+        <div class="description-box" id="phaseDescription">
+          Главная последовательность. В ядре стабильно протекает протон-протонный цикл синтеза гелия из водорода.
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-headline">
+          <span>Спектр излучения Планка</span>
+          <span id="peakWavelengthText" style="color: #cbd5e1; font-weight: normal;">λ_max: 502 нм</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="planckCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-headline">Диаграмма Герцшпрунга — Рассела</div>
+        <div class="chart-container">
+          <canvas id="hrCanvas"></canvas>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="footer-controls">
+    <div class="timeline-scrubber-bar">
+      <button class="playback-round-btn" id="playBtn" title="Воспроизведение">
+        <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </button>
+
+      <div class="slider-track-container">
+        <input type="range" id="timeSlider" min="-0.05" max="13.0" step="0.002" value="4.60">
+        <div class="timeline-ticks-container">
+          <span class="tick-item edge-left" style="left: 0%;">-0.05 (Облако)</span>
+          <span class="tick-item" style="left: 35.6%;">4.6 (Сейчас)</span>
+          <span class="tick-item" style="left: 61.7%;">8.0 (Парник)</span>
+          <span class="tick-item" style="left: 78.5%;">10.2 (TAMS)</span>
+          <span class="tick-item edge-right" style="left: 100%;">13.0 (Карлик)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="speed-and-presets">
+      <div class="speed-group">
+        <button class="speed-btn" data-speed="0.25">0.25x</button>
+        <button class="speed-btn" data-speed="0.5">0.5x</button>
+        <button class="speed-btn active" data-speed="1.0">1x</button>
+        <button class="speed-btn" data-speed="3.0">3x</button>
+        <button class="speed-btn" data-speed="8.0">8x</button>
+      </div>
+
+      <div class="granular-presets" id="milestonesContainer"></div>
+    </div>
+  </div>
+
+  <script>
+    const EVOLUTION_STAGES = [
+      {
+        t: -0.050,
+        r: 28.0,
+        l: 22.0,
+        temp: 3200,
+        mass: 1.00,
+        h: 0.74, he: 0.24, c: 0.01, o: 0.01,
+        spec: "Протозвезда • Класс 0/I",
+        name: "Гравитационный коллапс глобулы Бока",
+        desc: "Газопылевое облако сжимается под собственной гравитацией. В центре вспыхивает протоядро, окруженное аккреционным диском и биполярными струями газа.",
+        earthSky: [12, 8, 14], earthGround: [25, 20, 22],
+        marsSky: [10, 6, 8], marsGround: [28, 15, 12],
+        europaSky: [5, 4, 10], europaGround: [40, 42, 50]
+      },
+      {
+        t: -0.015,
+        r: 3.5,
+        l: 4.8,
+        temp: 4200,
+        mass: 1.00,
+        h: 0.74, he: 0.24, c: 0.01, o: 0.01,
+        spec: "Звезда Т Тельца",
+        name: "Стадия Т Тельца (Фаза Хаяши)",
+        desc: "Молодое светило сжимается по механизму Кельвина — Гельмгольца. Мощный протозвездный ветер выдувает остатки газа из протопланетного диска.",
+        earthSky: [35, 20, 18], earthGround: [45, 28, 20],
+        marsSky: [30, 18, 14], marsGround: [55, 30, 20],
+        europaSky: [8, 8, 18], europaGround: [55, 60, 70]
+      },
+      {
+        t: 0.000,
+        r: 0.89,
+        l: 0.70,
+        temp: 5600,
+        mass: 1.00,
+        h: 0.73, he: 0.25, c: 0.01, o: 0.01,
+        spec: "ZAMS • G2V",
+        name: "Нулевой возраст главной последовательности",
+        desc: "Температура ядра достигла 15 млн K. Вспыхнул устойчивый протон-протонный цикл. Солнце обрело гидростатическое равновесие.",
+        earthSky: [30, 50, 90], earthGround: [45, 55, 40],
+        marsSky: [80, 55, 45], marsGround: [120, 50, 30],
+        europaSky: [2, 3, 10], europaGround: [160, 175, 190]
+      },
+      {
+        t: 2.000,
+        r: 0.94,
+        l: 0.82,
+        temp: 5680,
+        mass: 1.00,
+        h: 0.58, he: 0.40, c: 0.01, o: 0.01,
+        spec: "Ранний желтый карлик • G2V",
+        name: "Архейская эра Земли",
+        desc: "Светимость постепенно нарастает из-за медленного роста плотности ядра. На Земле зарождаются первые одноклеточные организмы.",
+        earthSky: [45, 90, 150], earthGround: [40, 80, 50],
+        marsSky: [90, 60, 45], marsGround: [130, 55, 30],
+        europaSky: [2, 3, 10], europaGround: [160, 175, 190]
+      },
+      {
+        t: 4.600,
+        r: 1.00,
+        l: 1.00,
+        temp: 5778,
+        mass: 1.00,
+        h: 0.35, he: 0.63, c: 0.01, o: 0.01,
+        spec: "Желтый карлик • G2V",
+        name: "Современная эпоха (Настоящее время)",
+        desc: "Период максимальной климатической стабильности. В центре Солнца выгорела половина начального запаса водорода. Биосфера Земли процветает.",
+        earthSky: [65, 145, 225], earthGround: [40, 110, 50],
+        marsSky: [140, 95, 75], marsGround: [160, 70, 40],
+        europaSky: [2, 4, 12], europaGround: [175, 190, 205]
+      },
+      {
+        t: 6.000,
+        r: 1.12,
+        l: 1.18,
+        temp: 5820,
+        mass: 1.00,
+        h: 0.22, he: 0.76, c: 0.01, o: 0.01,
+        spec: "Желтый карлик • G2V",
+        name: "Влажный парниковый эффект",
+        desc: "Светимость поднялась на 18%. Средняя температура на Земле перевалила за 50°C. Океаны испаряются, наполняя стратосферу водяным паром.",
+        earthSky: [180, 170, 140], earthGround: [160, 120, 70],
+        marsSky: [150, 105, 85], marsGround: [170, 75, 45],
+        europaSky: [2, 4, 12], europaGround: [175, 190, 205]
+      },
+      {
+        t: 7.500,
+        r: 1.25,
+        l: 1.42,
+        temp: 5850,
+        mass: 0.99,
+        h: 0.12, he: 0.86, c: 0.01, o: 0.01,
+        spec: "Поздний желтый карлик • G1V",
+        name: "Полное высыхание Земли и оттепель на Марсе",
+        desc: "Океаны Земли полностью испарились. Ультрафиолет расщепляет воду, унося водород в космос. На Марсе зона жизни растапливает вечную мерзлоту.",
+        earthSky: [170, 110, 70], earthGround: [120, 80, 50],
+        marsSky: [120, 140, 180], marsGround: [90, 70, 50],
+        europaSky: [2, 4, 12], europaGround: [175, 190, 205]
+      },
+      {
+        t: 9.000,
+        r: 1.42,
+        l: 1.75,
+        temp: 5800,
+        mass: 0.98,
+        h: 0.04, he: 0.94, c: 0.01, o: 0.01,
+        spec: "Субгигант • G0IV",
+        name: "Марсианский оптимум",
+        desc: "Марс находится строго по центру сместившейся зоны обитаемости. На его поверхности существуют временные озера жидкой воды под голубоватым небом.",
+        earthSky: [150, 80, 50], earthGround: [95, 55, 35],
+        marsSky: [80, 120, 175], marsGround: [65, 85, 55],
+        europaSky: [3, 5, 14], europaGround: [170, 185, 200]
+      },
+      {
+        t: 10.200,
+        r: 1.62,
+        l: 2.25,
+        temp: 5700,
+        mass: 0.97,
+        h: 0.00, he: 0.98, c: 0.01, o: 0.01,
+        spec: "Субгигант • G0IV (TAMS)",
+        name: "Конец водорода в ядре (Точка TAMS)",
+        desc: "Водород в ядре исчерпан на 100%. Гелиевое ядро теряет термоядерную поддержку и сжимается, горение водорода вытесняется в слой над ядром.",
+        earthSky: [140, 65, 40], earthGround: [80, 45, 30],
+        marsSky: [100, 70, 50], marsGround: [120, 60, 40],
+        europaSky: [4, 6, 16], europaGround: [170, 185, 200]
+      },
+      {
+        t: 11.200,
+        r: 2.6,
+        l: 5.5,
+        temp: 5300,
+        mass: 0.95,
+        h: 0.00, he: 0.98, c: 0.01, o: 0.01,
+        spec: "Яркий субгигант • K0IV",
+        name: "Подъем по ветви субгигантов",
+        desc: "Слоевой источник водорода раздувает внешние слои звезды. Температура поверхности снижается, приобретая теплый золотисто-оранжевый цвет.",
+        earthSky: [120, 50, 30], earthGround: [70, 38, 25],
+        marsSky: [120, 55, 35], marsGround: [130, 60, 40],
+        europaSky: [6, 8, 20], europaGround: [165, 180, 195]
+      },
+      {
+        t: 11.700,
+        r: 8.5,
+        l: 45.0,
+        temp: 4500,
+        mass: 0.92,
+        h: 0.00, he: 0.98, c: 0.01, o: 0.01,
+        spec: "Оранжевый гигант • K3III",
+        name: "Ветвь красных гигантов: гибель Меркурия",
+        desc: "Солнце увеличилось почти в десять раз и поглотило Меркурий. Зона обитаемости ушла далеко за пояс Койпера к орбитам гигантов.",
+        earthSky: [95, 35, 20], earthGround: [120, 40, 20],
+        marsSky: [100, 40, 22], marsGround: [140, 55, 30],
+        europaSky: [12, 16, 32], europaGround: [150, 170, 190]
+      },
+      {
+        t: 12.050,
+        r: 55.0,
+        l: 650.0,
+        temp: 3600,
+        mass: 0.86,
+        h: 0.00, he: 0.98, c: 0.01, o: 0.01,
+        spec: "Красный гигант • M1III",
+        name: "Красный гигант: океаны магмы",
+        desc: "Потеря массы ускоряется, орбиты планет медленно расширяются наружу. На Земле базальтовые скалы плавятся в реки раскаленной магмы.",
+        earthSky: [70, 20, 15], earthGround: [195, 55, 12],
+        marsSky: [75, 22, 16], marsGround: [180, 50, 20],
+        europaSky: [22, 28, 55], europaGround: [120, 145, 175]
+      },
+      {
+        t: 12.180,
+        r: 210.0,
+        l: 2750.0,
+        temp: 3000,
+        mass: 0.74,
+        h: 0.00, he: 0.98, c: 0.01, o: 0.01,
+        spec: "Яркий красный гигант • M3III",
+        name: "Вершина ветви RGB: поглощение Венеры",
+        desc: "Венера поглощена. Солнце занимает треть видимого неба Земли. Зона жизни накрывает спутники Юпитера: ледяной панцирь Европы трескается.",
+        earthSky: [48, 10, 12], earthGround: [230, 70, 16],
+        marsSky: [55, 12, 14], marsGround: [210, 60, 18],
+        europaSky: [45, 50, 95], europaGround: [50, 95, 140]
+      },
+      {
+        t: 12.225,
+        r: 11.5,
+        l: 45.0,
+        temp: 4750,
+        mass: 0.73,
+        h: 0.00, he: 0.75, c: 0.20, o: 0.05,
+        spec: "Горизонтальная ветвь • K0III",
+        name: "Гелиевая вспышка (Helium Flash)",
+        desc: "В ядре произошел взрывной запуск горения гелия в углерод и кислород. Ядро расширилось, фотосфера на время сжалась и охладилась.",
+        earthSky: [80, 32, 22], earthGround: [90, 45, 30],
+        marsSky: [85, 35, 25], marsGround: [110, 50, 32],
+        europaSky: [15, 20, 40], europaGround: [130, 150, 170]
+      },
+      {
+        t: 12.280,
+        r: 45.0,
+        l: 420.0,
+        temp: 3800,
+        mass: 0.70,
+        h: 0.00, he: 0.40, c: 0.45, o: 0.15,
+        spec: "Асимптотическая ветвь (Ранняя AGB)",
+        name: "Исчерпание гелия в ядре",
+        desc: "В ядре сформировался инертный углеродно-кислородный остаток. Горение гелия и водорода переместилось в двойной слоевой источник.",
+        earthSky: [65, 18, 14], earthGround: [180, 50, 15],
+        marsSky: [70, 20, 16], marsGround: [175, 48, 18],
+        europaSky: [25, 32, 60], europaGround: [100, 130, 160]
+      },
+      {
+        t: 12.330,
+        r: 230.0,
+        l: 3500.0,
+        temp: 2850,
+        mass: 0.60,
+        h: 0.00, he: 0.15, c: 0.62, o: 0.23,
+        spec: "Пульсирующий сверхгигант • AGB",
+        name: "Термические пульсации и оттаивание Европы",
+        desc: "Суперветер срывает внешние слои. На Европе растаял километровый ледник: спутник стал глобальным теплым океаном под багровым небом.",
+        earthSky: [38, 8, 10], earthGround: [220, 60, 12],
+        marsSky: [42, 10, 12], marsGround: [205, 55, 15],
+        europaSky: [60, 45, 80], europaGround: [25, 80, 130]
+      },
+      {
+        t: 12.360,
+        r: 75.0,
+        l: 1600.0,
+        temp: 32000,
+        mass: 0.55,
+        h: 0.00, he: 0.05, c: 0.68, o: 0.27,
+        spec: "Планетарная туманность",
+        name: "Сброс оболочки • Ионизация туманности",
+        desc: "Вся водородная оболочка рассеивается в Галактике со скоростью 30 км/с. Открытое раскаленное ядро заливает небо люминесцентным сиянием.",
+        earthSky: [18, 32, 55], earthGround: [20, 18, 24],
+        marsSky: [20, 30, 50], marsGround: [25, 20, 26],
+        europaSky: [25, 40, 65], europaGround: [80, 110, 140]
+      },
+      {
+        t: 12.600,
+        r: 0.025,
+        l: 0.08,
+        temp: 24000,
+        mass: 0.54,
+        h: 0.00, he: 0.02, c: 0.70, o: 0.28,
+        spec: "Горячий белый карлик",
+        name: "Рассеивание туманности",
+        desc: "Оболочка растворилась в межзвездном пространстве. Ядро сжалось до размеров Земли. Температура на Европе и Марсе падает до космического абсолюта.",
+        earthSky: [6, 8, 14], earthGround: [12, 14, 18],
+        marsSky: [6, 8, 14], marsGround: [14, 14, 18],
+        europaSky: [8, 10, 18], europaGround: [150, 165, 185]
+      },
+      {
+        t: 13.000,
+        r: 0.012,
+        l: 0.0018,
+        temp: 11000,
+        mass: 0.54,
+        h: 0.00, he: 0.01, c: 0.70, o: 0.29,
+        spec: "Белый карлик • Класс DA",
+        name: "Углеродно-кислородный белый карлик",
+        desc: "Термоядерные реакции окончательно мертвы. Плотность составляет 1 тонну на см³. На обугленных остатках планет наступила вечная черная морозная ночь.",
+        earthSky: [2, 4, 8], earthGround: [10, 12, 16],
+        marsSky: [2, 4, 8], marsGround: [12, 12, 15],
+        europaSky: [3, 5, 10], europaGround: [175, 190, 205]
+      }
+    ];
+
+    let currentAge = 4.60;
+    let isPlaying = false;
+    let basePlaySpeed = 0.08;
+    let speedMultiplier = 1.0;
+    let currentView = 'space';
+    let currentPlanet = 'earth';
+    let cameraFocus = 'sun';
+    let isCutaway = false;
+    let isHzVisible = true;
+    let isSoundOn = false;
+    let lastAnimTime = performance.now();
+
+    let camX = 0;
+    let camY = 0;
+    let camZoom = 1.0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialPinchDist = null;
+
+    const mainCanvas = document.getElementById('mainCanvas');
+    const mCtx = mainCanvas.getContext('2d');
+    const hrCanvas = document.getElementById('hrCanvas');
+    const hCtx = hrCanvas.getContext('2d');
+    const planckCanvas = document.getElementById('planckCanvas');
+    const pCtx = planckCanvas.getContext('2d');
+
+    const valAge = document.getElementById('valAge');
+    const valRadius = document.getElementById('valRadius');
+    const valLum = document.getElementById('valLum');
+    const valTemp = document.getElementById('valTemp');
+    const valMass = document.getElementById('valMass');
+    const valHzDist = document.getElementById('valHzDist');
+    const spectralBadge = document.getElementById('spectralClassBadge');
+    const phaseDesc = document.getElementById('phaseDescription');
+    const cameraHudBadge = document.getElementById('cameraHudBadge');
+    const surfaceTempBadge = document.getElementById('surfaceTempBadge');
+    const hzStatusBadge = document.getElementById('hzStatusBadge');
+    const peakWavelengthText = document.getElementById('peakWavelengthText');
+    const camHint = document.getElementById('camHint');
+    const timeSlider = document.getElementById('timeSlider');
+    const playBtn = document.getElementById('playBtn');
+    const playIcon = document.getElementById('playIcon');
+    const viewSpaceBtn = document.getElementById('viewSpaceBtn');
+    const toggleHzBtn = document.getElementById('toggleHzBtn');
+    const toggleCutawayBtn = document.getElementById('toggleCutawayBtn');
+    const soundBtn = document.getElementById('soundBtn');
+    const screenshotBtn = document.getElementById('screenshotBtn');
+    const resetCamBtn = document.getElementById('resetCamBtn');
+    const planetBtns = document.querySelectorAll('#planetGroup .pill-item');
+    const focusBtns = document.querySelectorAll('#focusGroup .pill-item');
+    const speedBtns = document.querySelectorAll('.speed-btn');
+    const milestonesContainer = document.getElementById('milestonesContainer');
+
+    const barH = document.getElementById('barH');
+    const barHe = document.getElementById('barHe');
+    const barC = document.getElementById('barC');
+    const barO = document.getElementById('barO');
+    const hPctText = document.getElementById('hPctText');
+    const hePctText = document.getElementById('hePctText');
+    const coPctText = document.getElementById('coPctText');
+
+    function createMilestoneButtons() {
+      milestonesContainer.innerHTML = '';
+      EVOLUTION_STAGES.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'milestone-tag';
+        btn.dataset.time = s.t;
+        const timeLabel = s.t >= 0 ? s.t.toFixed(2) : s.t.toFixed(3);
+        const nameShort = s.name.split(/[:•(]/)[0].trim().slice(0, 16);
+        btn.innerText = `${timeLabel}: ${nameShort}`;
+        btn.addEventListener('click', () => {
+          currentAge = Number(s.t);
+        });
+        milestonesContainer.appendChild(btn);
+      });
+    }
+    createMilestoneButtons();
+
+    let audioCtx = null;
+    let osc1 = null;
+    let osc2 = null;
+    let noiseNode = null;
+    let filterNode = null;
+    let masterGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        masterGain.connect(audioCtx.destination);
+
+        filterNode = audioCtx.createBiquadFilter();
+        filterNode.type = 'lowpass';
+        filterNode.frequency.setValueAtTime(220, audioCtx.currentTime);
+        filterNode.connect(masterGain);
+
+        osc1 = audioCtx.createOscillator();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(55, audioCtx.currentTime);
+
+        osc2 = audioCtx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(56.5, audioCtx.currentTime);
+
+        const bufferSize = audioCtx.sampleRate * 2;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+
+        noiseNode = audioCtx.createBufferSource();
+        noiseNode.buffer = noiseBuffer;
+        noiseNode.loop = true;
+
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0.035, audioCtx.currentTime);
+        noiseNode.connect(noiseGain);
+        noiseGain.connect(filterNode);
+
+        osc1.connect(filterNode);
+        osc2.connect(filterNode);
+
+        osc1.start();
+        osc2.start();
+        noiseNode.start();
+      } catch (e) {
+        console.warn("Audio init failed", e);
+      }
+    }
+
+    function updateAudio(state) {
+      if (!audioCtx || !isSoundOn) return;
+      try {
+        const t = audioCtx.currentTime;
+        if (state.t < 0) {
+          osc1.frequency.setTargetAtTime(45 + Math.abs(state.t) * 500, t, 0.1);
+          osc2.frequency.setTargetAtTime(75, t, 0.1);
+          filterNode.frequency.setTargetAtTime(350, t, 0.1);
+          masterGain.gain.setTargetAtTime(0.2, t, 0.1);
+        } else if (state.t <= 10.2) {
+          osc1.frequency.setTargetAtTime(55, t, 0.1);
+          osc2.frequency.setTargetAtTime(110, t, 0.1);
+          filterNode.frequency.setTargetAtTime(220, t, 0.1);
+          masterGain.gain.setTargetAtTime(0.18, t, 0.1);
+        } else if (state.t < 12.35) {
+          const giantPitch = Math.max(26, 60 - Math.log10(Math.max(1, state.r)) * 12);
+          osc1.frequency.setTargetAtTime(giantPitch, t, 0.1);
+          osc2.frequency.setTargetAtTime(giantPitch * 1.5, t, 0.1);
+          filterNode.frequency.setTargetAtTime(480, t, 0.1);
+          masterGain.gain.setTargetAtTime(0.28, t, 0.1);
+        } else if (state.t <= 12.60) {
+          osc1.frequency.setTargetAtTime(160, t, 0.1);
+          osc2.frequency.setTargetAtTime(320, t, 0.1);
+          filterNode.frequency.setTargetAtTime(950, t, 0.1);
+          masterGain.gain.setTargetAtTime(0.24, t, 0.1);
+        } else {
+          osc1.frequency.setTargetAtTime(440, t, 0.1);
+          osc2.frequency.setTargetAtTime(442, t, 0.1);
+          filterNode.frequency.setTargetAtTime(550, t, 0.1);
+          masterGain.gain.setTargetAtTime(0.06, t, 0.1);
+        }
+      } catch (e) {
+        console.warn("Audio target error", e);
+      }
+    }
+
+    function toggleAudio() {
+      initAudio();
+      if (!audioCtx) return;
+
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      isSoundOn = !isSoundOn;
+      if (isSoundOn) {
+        soundBtn.classList.add('active');
+        soundBtn.innerText = 'Звук: Вкл';
+        masterGain.gain.setTargetAtTime(0.2, audioCtx.currentTime, 0.15);
+      } else {
+        soundBtn.classList.remove('active');
+        soundBtn.innerText = 'Звук: Выкл';
+        masterGain.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.1);
+      }
+    }
+
+    function resizeCanvases() {
+      const dpr = window.devicePixelRatio || 1;
+      
+      const mRect = mainCanvas.parentElement.getBoundingClientRect();
+      mainCanvas.width = mRect.width * dpr;
+      mainCanvas.height = mRect.height * dpr;
+      mCtx.resetTransform();
+      mCtx.scale(dpr, dpr);
+
+      const hRect = hrCanvas.parentElement.getBoundingClientRect();
+      hrCanvas.width = hRect.width * dpr;
+      hrCanvas.height = hRect.height * dpr;
+      hCtx.resetTransform();
+      hCtx.scale(dpr, dpr);
+
+      const pRect = planckCanvas.parentElement.getBoundingClientRect();
+      planckCanvas.width = pRect.width * dpr;
+      planckCanvas.height = pRect.height * dpr;
+      pCtx.resetTransform();
+      pCtx.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', resizeCanvases);
+
+    function lerp(a, b, f) {
+      return a + (b - a) * f;
+    }
+
+    function rgb(r, g, b) {
+      const cr = Math.max(0, Math.min(255, Math.round(r)));
+      const cg = Math.max(0, Math.min(255, Math.round(g)));
+      const cb = Math.max(0, Math.min(255, Math.round(b)));
+      return `rgb(${cr}, ${cg}, ${cb})`;
+    }
+
+    function rgba(r, g, b, a) {
+      const cr = Math.max(0, Math.min(255, Math.round(r)));
+      const cg = Math.max(0, Math.min(255, Math.round(g)));
+      const cb = Math.max(0, Math.min(255, Math.round(b)));
+      const ca = Math.max(0, Math.min(1, Number(a) || 0));
+      return `rgba(${cr}, ${cg}, ${cb}, ${ca.toFixed(3)})`;
+    }
+
+    function lerpColor(c1, c2, f) {
+      return [
+        Math.round(lerp(c1[0], c2[0], f)),
+        Math.round(lerp(c1[1], c2[1], f)),
+        Math.round(lerp(c1[2], c2[2], f))
+      ];
+    }
+
+    function getInterpolatedState(age) {
+      const minT = EVOLUTION_STAGES[0].t;
+      const maxT = EVOLUTION_STAGES[EVOLUTION_STAGES.length - 1].t;
+      const clampedAge = Math.max(minT, Math.min(maxT, Number(age) || 0));
+
+      let i = 0;
+      while (i < EVOLUTION_STAGES.length - 2 && EVOLUTION_STAGES[i + 1].t <= clampedAge) {
+        i++;
+      }
+
+      const s0 = EVOLUTION_STAGES[i];
+      const s1 = EVOLUTION_STAGES[i + 1];
+      const span = s1.t - s0.t;
+      const factor = span > 0 ? Math.max(0, Math.min(1, (clampedAge - s0.t) / span)) : 0;
+
+      const logR = lerp(Math.log10(s0.r), Math.log10(s1.r), factor);
+      const logL = lerp(Math.log10(s0.l), Math.log10(s1.l), factor);
+      const temp = lerp(s0.temp, s1.temp, factor);
+      const mass = Math.max(0.1, lerp(s0.mass, s1.mass, factor));
+      const l = Math.pow(10, logL);
+      const r = Math.pow(10, logR);
+
+      const hzIn = Math.sqrt(Math.max(0.0001, l) / 1.1);
+      const hzOut = Math.sqrt(Math.max(0.0001, l) / 0.53);
+
+      return {
+        t: clampedAge,
+        r: r,
+        l: l,
+        temp: temp,
+        mass: mass,
+        h: Math.max(0, Math.min(1, lerp(s0.h, s1.h, factor))),
+        he: Math.max(0, Math.min(1, lerp(s0.he, s1.he, factor))),
+        c: Math.max(0, Math.min(1, lerp(s0.c, s1.c, factor))),
+        o: Math.max(0, Math.min(1, lerp(s0.o, s1.o, factor))),
+        spec: factor < 0.5 ? s0.spec : s1.spec,
+        name: factor < 0.5 ? s0.name : s1.name,
+        desc: factor < 0.5 ? s0.desc : s1.desc,
+        hzIn: hzIn,
+        hzOut: hzOut,
+        earthSky: lerpColor(s0.earthSky, s1.earthSky, factor),
+        earthGround: lerpColor(s0.earthGround, s1.earthGround, factor),
+        marsSky: lerpColor(s0.marsSky, s1.marsSky, factor),
+        marsGround: lerpColor(s0.marsGround, s1.marsGround, factor),
+        europaSky: lerpColor(s0.europaSky, s1.europaSky, factor),
+        europaGround: lerpColor(s0.europaGround, s1.europaGround, factor)
+      };
+    }
+
+    function calculateSurfaceTemp(planet, state) {
+      const distAU = (planet === 'earth' ? 1.00 : planet === 'mars' ? 1.524 : 5.204) / Math.max(0.1, state.mass);
+      const sunRadAU = state.r / 215.0;
+
+      if (sunRadAU >= distAU) {
+        return Math.round(state.temp);
+      }
+
+      const tEquilKelvin = 278.5 * Math.pow(Math.max(0.0001, state.l), 0.25) / Math.sqrt(distAU);
+      let celsius;
+
+      if (planet === 'earth') {
+        let greenhouse = 33;
+        if (state.t > 5.5 && state.t < 10.0) {
+          greenhouse += Math.min(120, (state.t - 5.5) * 35);
+        }
+        celsius = (tEquilKelvin + greenhouse) - 273.15;
+        if (state.r > 20) {
+          celsius = Math.max(celsius, 1100 + (state.r - 20) * 3.5);
+        }
+      } else if (planet === 'mars') {
+        let greenhouse = 5;
+        if (state.t >= 7.0 && state.t <= 9.8) {
+          greenhouse = 24;
+        }
+        celsius = (tEquilKelvin + greenhouse) - 273.15;
+      } else {
+        celsius = tEquilKelvin - 273.15;
+        if (celsius > 0 && celsius < 100) {
+          celsius = Math.round(celsius);
+        }
+      }
+
+      return Math.round(celsius);
+    }
+
+    function getStarColor(temp) {
+      if (temp < 3100) return { core: '#ff2500', outer: '#991100', corona: 'rgba(255, 37, 0, 0.25)' };
+      if (temp < 4000) return { core: '#ff772e', outer: '#cf3800', corona: 'rgba(255, 110, 40, 0.3)' };
+      if (temp < 5200) return { core: '#ffb648', outer: '#f57c00', corona: 'rgba(255, 180, 70, 0.35)' };
+      if (temp < 6000) return { core: '#fffbe8', outer: '#fbc02d', corona: 'rgba(255, 220, 100, 0.4)' };
+      if (temp < 12000) return { core: '#ffffff', outer: '#90caf9', corona: 'rgba(144, 202, 249, 0.45)' };
+      return { core: '#edf5ff', outer: '#2979ff', corona: 'rgba(41, 121, 255, 0.5)' };
+    }
+
+    const spaceStars = [];
+    for (let i = 0; i < 240; i++) {
+      spaceStars.push({
+        x: Math.random() * 2 - 1,
+        y: Math.random() * 2 - 1,
+        size: Math.random() * 1.5 + 0.4,
+        alpha: Math.random() * 0.7 + 0.3
+      });
+    }
+
+    const protoDust = [];
+    for (let i = 0; i < 180; i++) {
+      protoDust.push({
+        angle: Math.random() * Math.PI * 2,
+        dist: Math.random() * 0.9 + 0.1,
+        speed: (Math.random() * 0.8 + 0.5) * (Math.random() > 0.5 ? 1 : -1),
+        size: Math.random() * 2.5 + 1.0,
+        alpha: Math.random() * 0.6 + 0.2
+      });
+    }
+
+    function drawSpaceView(ctx, w, h, state, now) {
+      ctx.fillStyle = '#010308';
+      ctx.fillRect(0, 0, w, h);
+
+      const baseScaleAU = (Math.min(w, h) * 0.34) / 1.524;
+      const massFactor = 1.0 / Math.max(0.1, state.mass);
+
+      let focusOffsetX = 0;
+      let focusOffsetY = 0;
+
+      if (cameraFocus !== 'sun') {
+        const pDist = (cameraFocus === 'earth' ? 1.00 : cameraFocus === 'mars' ? 1.524 : 5.204) * massFactor;
+        const pSpeed = cameraFocus === 'earth' ? 1.0 : cameraFocus === 'mars' ? 0.53 : 0.08;
+        const angle = now * 0.0003 * pSpeed;
+        const radPx = pDist * baseScaleAU;
+        focusOffsetX = -Math.cos(angle) * radPx;
+        focusOffsetY = -Math.sin(angle) * radPx;
+      }
+
+      ctx.save();
+      ctx.translate(w / 2 + camX + focusOffsetX * camZoom, h / 2 + camY + focusOffsetY * camZoom);
+      ctx.scale(camZoom, camZoom);
+
+      const maxDim = Math.max(w, h);
+      for (let s of spaceStars) {
+        ctx.fillStyle = rgba(255, 255, 255, s.alpha * (0.8 + 0.2 * Math.sin(now * 0.002 + s.x * 10)));
+        ctx.beginPath();
+        ctx.arc(s.x * maxDim * 2.0, s.y * maxDim * 2.0, s.size / camZoom, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const orbits = [
+        { name: 'Меркурий', r0: 0.387, color: 'rgba(180, 160, 140, 0.4)', speed: 4.1 },
+        { name: 'Венера', r0: 0.723, color: 'rgba(230, 200, 140, 0.4)', speed: 1.6 },
+        { name: 'Земля', r0: 1.000, color: 'rgba(100, 180, 255, 0.5)', speed: 1.0 },
+        { name: 'Марс', r0: 1.524, color: 'rgba(255, 120, 90, 0.4)', speed: 0.53 },
+        { name: 'Юпитер', r0: 5.204, color: 'rgba(255, 180, 120, 0.3)', speed: 0.08 }
+      ];
+
+      if (isHzVisible && state.t >= 0.0) {
+        const rInPx = Math.max(1, state.hzIn * baseScaleAU);
+        const rOutPx = Math.max(rInPx + 1, state.hzOut * baseScaleAU);
+
+        if (rInPx < maxDim * 5) {
+          ctx.fillStyle = 'rgba(34, 197, 94, 0.08)';
+          ctx.beginPath();
+          ctx.arc(0, 0, rOutPx, 0, Math.PI * 2);
+          ctx.arc(0, 0, rInPx, 0, Math.PI * 2, true);
+          ctx.fill();
+
+          ctx.strokeStyle = 'rgba(34, 197, 94, 0.3)';
+          ctx.lineWidth = 1 / camZoom;
+          ctx.beginPath();
+          ctx.arc(0, 0, rInPx, 0, Math.PI * 2);
+          ctx.arc(0, 0, rOutPx, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.font = `${Math.max(9, Math.round(10 / camZoom))}px sans-serif`;
+          ctx.fillStyle = 'rgba(134, 239, 172, 0.6)';
+          ctx.fillText("Зона обитаемости", rInPx + 6 / camZoom, 0);
+        }
+      }
+
+      if (state.t >= 0.0) {
+        for (let o of orbits) {
+          const rCurAU = o.r0 * massFactor;
+          const radPx = rCurAU * baseScaleAU;
+          const sunRadiusAU = state.r / 215.0;
+          const isEngulfed = sunRadiusAU >= rCurAU;
+
+          if (!isEngulfed) {
+            ctx.strokeStyle = o.color;
+            ctx.lineWidth = 1 / camZoom;
+            ctx.setLineDash([3 / camZoom, 5 / camZoom]);
+            ctx.beginPath();
+            ctx.arc(0, 0, radPx, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const angle = now * 0.0003 * o.speed;
+            const px = Math.cos(angle) * radPx;
+            const py = Math.sin(angle) * radPx;
+
+            ctx.fillStyle = o.color;
+            ctx.beginPath();
+            ctx.arc(px, py, 2.5 / camZoom, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.font = `${Math.max(9, Math.round(10 / camZoom))}px sans-serif`;
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.8)';
+            ctx.fillText(o.name, px + 5 / camZoom, py + 3 / camZoom);
+          }
+        }
+      }
+
+      if (state.t < 0.0) {
+        const protoProg = Math.max(0, Math.min(1, (state.t + 0.05) / 0.05));
+        const diskRadius = Math.max(15, baseScaleAU * 2.4 * (1.6 - protoProg * 0.6));
+
+        const diskGrad = ctx.createRadialGradient(0, 0, 1, 0, 0, Math.max(2, diskRadius));
+        diskGrad.addColorStop(0, rgba(255, 160, 60, 0.65));
+        diskGrad.addColorStop(0.3, rgba(180, 70, 20, 0.35));
+        diskGrad.addColorStop(0.7, rgba(100, 30, 10, 0.18));
+        diskGrad.addColorStop(1, rgba(30, 10, 5, 0));
+
+        ctx.save();
+        ctx.scale(1.0, 0.38);
+        ctx.fillStyle = diskGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, diskRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        for (let p of protoDust) {
+          const curAngle = p.angle + (now * 0.0006 * p.speed);
+          const rCur = p.dist * diskRadius;
+          const px = Math.cos(curAngle) * rCur;
+          const py = Math.sin(curAngle) * rCur;
+
+          ctx.fillStyle = rgba(255, 200, 140, p.alpha * (1 - protoProg * 0.5));
+          ctx.beginPath();
+          ctx.arc(px, py, p.size / camZoom, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        const jetLen = Math.max(20, baseScaleAU * 2.8 * (1.8 - protoProg * 0.5));
+        const jetGrad = ctx.createLinearGradient(0, -jetLen, 0, jetLen);
+        jetGrad.addColorStop(0, rgba(100, 200, 255, 0));
+        jetGrad.addColorStop(0.4, rgba(120, 220, 255, 0.5));
+        jetGrad.addColorStop(0.5, rgba(255, 255, 255, 0.9));
+        jetGrad.addColorStop(0.6, rgba(120, 220, 255, 0.5));
+        jetGrad.addColorStop(1, rgba(100, 200, 255, 0));
+
+        ctx.strokeStyle = jetGrad;
+        ctx.lineWidth = 3.5 / camZoom;
+        ctx.beginPath();
+        ctx.moveTo(0, -jetLen);
+        ctx.lineTo(0, jetLen);
+        ctx.stroke();
+      }
+
+      if (state.t >= 12.33 && state.t <= 12.75) {
+        const nebFactor = Math.max(0, Math.min(1, (state.t - 12.33) / 0.42));
+        const maxNebRad = Math.max(30, baseScaleAU * 3.5 * (1.0 + nebFactor * 3.5));
+        const nebGrad = ctx.createRadialGradient(0, 0, Math.max(1, maxNebRad * 0.15), 0, 0, Math.max(2, maxNebRad));
+        nebGrad.addColorStop(0, rgba(0, 255, 220, 0));
+        nebGrad.addColorStop(0.45, rgba(0, 220, 230, 0.45 * (1 - nebFactor)));
+        nebGrad.addColorStop(0.8, rgba(190, 60, 230, 0.4 * (1 - nebFactor)));
+        nebGrad.addColorStop(1, rgba(20, 5, 45, 0));
+
+        ctx.fillStyle = nebGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, maxNebRad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const sunRadiusAU = state.r / 215.0;
+      let starPx = sunRadiusAU * baseScaleAU;
+
+      if (state.r < 0.05) {
+        starPx = 3.5;
+      } else if (starPx < 6) {
+        starPx = 6;
+      }
+      starPx = Math.max(3.5, Number(starPx) || 6);
+
+      const colors = getStarColor(state.temp);
+
+      if (!isCutaway) {
+        const glowGrad = ctx.createRadialGradient(0, 0, Math.max(0.1, starPx * 0.4), 0, 0, Math.max(0.2, starPx * 3.2));
+        glowGrad.addColorStop(0, colors.corona);
+        glowGrad.addColorStop(0.35, colors.corona);
+        glowGrad.addColorStop(1, rgba(0, 0, 0, 0));
+
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, starPx * 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = colors.outer;
+        ctx.beginPath();
+        ctx.arc(0, 0, starPx, 0, Math.PI * 2);
+        ctx.fill();
+
+        const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(0.1, starPx));
+        coreGrad.addColorStop(0, colors.core);
+        coreGrad.addColorStop(0.85, colors.outer);
+        coreGrad.addColorStop(1, colors.outer);
+
+        ctx.fillStyle = coreGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, starPx, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (starPx * camZoom > 25 && state.r > 0.05) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(0, 0, starPx, 0, Math.PI * 2);
+          ctx.clip();
+          const granCount = Math.min(45, Math.round(starPx * camZoom * 0.4));
+          for (let i = 0; i < granCount; i++) {
+            const ga = (i * 137.5 * Math.PI) / 180;
+            const gr = Math.sqrt(i / granCount) * (starPx * 0.88);
+            const gx = Math.cos(ga) * gr;
+            const gy = Math.sin(ga) * gr;
+            const gPulse = Math.sin(now * 0.003 + i * 2.5) * 0.2 + 0.8;
+            ctx.fillStyle = rgba(0, 0, 0, 0.12 * gPulse);
+            ctx.beginPath();
+            ctx.arc(gx, gy, (starPx * 0.12) * gPulse, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+
+          const promCount = 6;
+          for (let p = 0; p < promCount; p++) {
+            const pa = (p * (Math.PI * 2 / promCount)) + (now * 0.0002);
+            const pl = starPx * (1.08 + 0.12 * Math.sin(now * 0.004 + p * 3));
+            const px = Math.cos(pa) * pl;
+            const py = Math.sin(pa) * pl;
+            ctx.strokeStyle = colors.corona;
+            ctx.lineWidth = 2 / camZoom;
+            ctx.beginPath();
+            ctx.arc(px, py, starPx * 0.1, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      } else {
+        drawCutawayCore(ctx, starPx, state);
+      }
+
+      if (state.r < 0.05) {
+        ctx.strokeStyle = rgba(210, 235, 255, 0.8);
+        ctx.lineWidth = 1.2 / camZoom;
+        const cross = 18 / camZoom;
+        ctx.beginPath();
+        ctx.moveTo(-cross, 0);
+        ctx.lineTo(cross, 0);
+        ctx.moveTo(0, -cross);
+        ctx.lineTo(0, cross);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCutawayCore(ctx, starPx, state) {
+      const visualR = Math.max(65 / camZoom, Math.min(starPx, 160 / camZoom));
+
+      let layers = [];
+      if (state.t < 0.0) {
+        layers = [
+          { name: "Коллапсирующее протоядро", rPct: 0.42, color: "#ff8f00" },
+          { name: "Газопылевая протооболочка", rPct: 1.0, color: "rgba(255, 70, 20, 0.4)" }
+        ];
+      } else if (state.t <= 10.2) {
+        layers = [
+          { name: "Ядро: протон-протонный цикл (H → He)", rPct: 0.30, color: "#fff59d" },
+          { name: "Зона лучистого переноса энергии", rPct: 0.70, color: "#ffa726" },
+          { name: "Конвективная зона фотосферы", rPct: 1.0, color: "rgba(255, 60, 20, 0.4)" }
+        ];
+      } else if (state.t <= 12.22) {
+        layers = [
+          { name: "Вырожденное гелиевое ядро", rPct: 0.22, color: "#90a4ae" },
+          { name: "Слоевой источник горения H → He", rPct: 0.32, color: "#ffeb3b" },
+          { name: "Раздутая конвективная оболочка", rPct: 1.0, color: "rgba(255, 60, 20, 0.35)" }
+        ];
+      } else if (state.t < 12.36) {
+        layers = [
+          { name: "Инертное углеродно-кислородное ядро", rPct: 0.18, color: "#546e7a" },
+          { name: "Слой термоядерного горения He → C, O", rPct: 0.28, color: "#00e676" },
+          { name: "Слой термоядерного горения H → He", rPct: 0.38, color: "#ffeb3b" },
+          { name: "Пульсирующая внешняя оболочка", rPct: 1.0, color: "rgba(255, 60, 20, 0.35)" }
+        ];
+      } else {
+        layers = [
+          { name: "Кристаллический вырожденный C/O карлик", rPct: 1.0, color: "#90caf9" }
+        ];
+      }
+
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const shellR = visualR * layers[i].rPct;
+        ctx.fillStyle = layers[i].color;
+        ctx.beginPath();
+        ctx.arc(0, 0, shellR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1 / camZoom;
+        ctx.stroke();
+      }
+
+      const labelX = visualR + 35 / camZoom;
+      const lineGap = 22 / camZoom;
+      const totalH = (layers.length - 1) * lineGap;
+      const startY = -totalH / 2;
+
+      ctx.font = `${Math.max(10, Math.round(11 / camZoom))}px sans-serif`;
+      ctx.textBaseline = 'middle';
+
+      for (let i = 0; i < layers.length; i++) {
+        const y = startY + i * lineGap;
+        const shellR = visualR * layers[i].rPct;
+
+        const anchorAngle = (i - (layers.length - 1) / 2) * 0.35;
+        const ax = Math.cos(anchorAngle) * shellR;
+        const ay = Math.sin(anchorAngle) * shellR;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1 / camZoom;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(visualR + 15 / camZoom, y);
+        ctx.lineTo(labelX - 6 / camZoom, y);
+        ctx.stroke();
+
+        ctx.fillStyle = layers[i].color;
+        ctx.beginPath();
+        ctx.arc(ax, ay, 2.5 / camZoom, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillText(layers[i].name, labelX, y);
+      }
+    }
+
+    function drawSurfaceView(ctx, w, h, state, now) {
+      let skyRGB, groundRGB, planetDistAU;
+      if (currentPlanet === 'earth') {
+        skyRGB = state.earthSky;
+        groundRGB = state.earthGround;
+        planetDistAU = 1.00 / Math.max(0.1, state.mass);
+      } else if (currentPlanet === 'mars') {
+        skyRGB = state.marsSky;
+        groundRGB = state.marsGround;
+        planetDistAU = 1.524 / Math.max(0.1, state.mass);
+      } else {
+        skyRGB = state.europaSky;
+        groundRGB = state.europaGround;
+        planetDistAU = 5.204 / Math.max(0.1, state.mass);
+      }
+
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.72);
+      skyGrad.addColorStop(0, rgb(skyRGB[0] * 0.35, skyRGB[1] * 0.35, skyRGB[2] * 0.45));
+      skyGrad.addColorStop(0.7, rgb(skyRGB[0], skyRGB[1], skyRGB[2]));
+      skyGrad.addColorStop(1, rgb(skyRGB[0] * 1.25, skyRGB[1] * 1.15, skyRGB[2] * 1.05));
+      
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      if (skyRGB[0] < 45 && skyRGB[1] < 45) {
+        for (let s of spaceStars) {
+          ctx.fillStyle = rgba(255, 255, 255, s.alpha * 0.9);
+          ctx.beginPath();
+          ctx.arc((s.x + 1) * 0.5 * w, (s.y + 1) * 0.35 * h, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (currentPlanet === 'europa') {
+        const jupX = w * 0.82;
+        const jupY = h * 0.28;
+        const jupR = Math.min(w, h) * 0.16;
+
+        if (jupR > 5) {
+          const jupGrad = ctx.createRadialGradient(jupX - jupR * 0.3, jupY - jupR * 0.3, Math.max(1, jupR * 0.15), jupX, jupY, jupR);
+          jupGrad.addColorStop(0, '#fde68a');
+          jupGrad.addColorStop(0.5, '#d97706');
+          jupGrad.addColorStop(0.85, '#92400e');
+          jupGrad.addColorStop(1, '#451a03');
+
+          ctx.fillStyle = jupGrad;
+          ctx.beginPath();
+          ctx.arc(jupX, jupY, jupR, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(jupX, jupY, jupR, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.strokeStyle = 'rgba(120, 53, 15, 0.4)';
+          ctx.lineWidth = 4;
+          for (let b = -jupR; b <= jupR; b += 12) {
+            ctx.beginPath();
+            ctx.moveTo(jupX - jupR, jupY + b);
+            ctx.lineTo(jupX + jupR, jupY + b);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+
+      if (state.t >= 12.33 && state.t <= 12.75) {
+        const factor = Math.max(0, Math.min(1, (state.t - 12.33) / 0.42));
+        const nebSky = ctx.createRadialGradient(w * 0.5, h * 0.35, 1, w * 0.5, h * 0.35, Math.max(2, w * 0.75));
+        nebSky.addColorStop(0, rgba(0, 255, 220, 0.45 * (1 - factor)));
+        nebSky.addColorStop(0.4, rgba(180, 50, 240, 0.38 * (1 - factor)));
+        nebSky.addColorStop(0.85, rgba(0, 0, 0, 0));
+        ctx.fillStyle = nebSky;
+        ctx.fillRect(0, 0, w, h * 0.75);
+      }
+
+      const sunCenterX = w * 0.45;
+      const sunCenterY = h * 0.38;
+      
+      let angularRadius;
+      if (state.r < 0.05) {
+        angularRadius = 2.5;
+      } else {
+        const basePx = 18;
+        angularRadius = (basePx * Math.pow(state.r, 0.56)) / Math.pow(Math.max(0.1, planetDistAU), 0.65);
+      }
+      angularRadius = Math.max(2.0, Math.min(Math.min(w, h) * 1.5, Number(angularRadius) || 2.0));
+
+      const colors = getStarColor(state.temp);
+
+      const surfaceSunGlow = ctx.createRadialGradient(
+        sunCenterX, sunCenterY, Math.max(0.1, angularRadius * 0.3),
+        sunCenterX, sunCenterY, Math.max(angularRadius * 2.5, 45)
+      );
+      surfaceSunGlow.addColorStop(0, colors.core);
+      surfaceSunGlow.addColorStop(0.4, colors.outer);
+      surfaceSunGlow.addColorStop(1, rgba(0, 0, 0, 0));
+
+      ctx.fillStyle = surfaceSunGlow;
+      ctx.beginPath();
+      ctx.arc(sunCenterX, sunCenterY, Math.max(angularRadius * 2.5, 45), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = colors.core;
+      ctx.beginPath();
+      ctx.arc(sunCenterX, sunCenterY, angularRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (state.temp < 3900 && angularRadius > 40) {
+        for (let i = 0; i < 5; i++) {
+          const spotX = sunCenterX + (Math.sin(i * 1.8 + now * 0.0003) * angularRadius * 0.6);
+          const spotY = sunCenterY + (Math.cos(i * 2.4 + now * 0.0004) * angularRadius * 0.5);
+          ctx.fillStyle = 'rgba(100, 10, 0, 0.4)';
+          ctx.beginPath();
+          ctx.arc(spotX, spotY, angularRadius * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      const horizonY = h * 0.72;
+
+      ctx.beginPath();
+      ctx.moveTo(0, horizonY);
+      for (let x = 0; x <= w; x += 20) {
+        const elevated = Math.sin(x * 0.006) * 12 + Math.cos(x * 0.02) * 6;
+        ctx.lineTo(x, horizonY + elevated);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+
+      const groundGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+      groundGrad.addColorStop(0, rgb(groundRGB[0], groundRGB[1], groundRGB[2]));
+      groundGrad.addColorStop(1, rgb(groundRGB[0] * 0.45, groundRGB[1] * 0.45, groundRGB[2] * 0.45));
+      ctx.fillStyle = groundGrad;
+      ctx.fill();
+
+      if (currentPlanet === 'earth') {
+        if (state.t < 0.0 || state.r > 20.0) {
+          const lavaAlpha = state.t < 0.0 ? 0.4 : 0.6 + 0.2 * Math.sin(now * 0.004);
+          ctx.strokeStyle = rgba(255, 90, 10, lavaAlpha);
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          for (let x = 0; x <= w; x += 35) {
+            const ly = horizonY + 20 + Math.sin(x * 0.03 + now * 0.002) * 8;
+            if (x === 0) ctx.moveTo(x, ly);
+            else ctx.lineTo(x, ly);
+          }
+          ctx.stroke();
+        } else if (state.t < 5.2) {
+          ctx.fillStyle = 'rgba(30, 105, 175, 0.55)';
+          ctx.fillRect(0, horizonY + 32, w, Math.max(0, h - (horizonY + 32)));
+        }
+      } else if (currentPlanet === 'mars') {
+        if (state.t >= 7.5 && state.t <= 9.5) {
+          ctx.fillStyle = 'rgba(45, 110, 160, 0.45)';
+          ctx.fillRect(0, horizonY + 36, w, Math.max(0, h - (horizonY + 36)));
+        }
+      } else if (currentPlanet === 'europa') {
+        if (state.t >= 12.15 && state.t <= 12.35) {
+          ctx.fillStyle = 'rgba(20, 80, 140, 0.6)';
+          ctx.fillRect(0, horizonY + 28, w, Math.max(0, h - (horizonY + 28)));
+        } else {
+          ctx.strokeStyle = 'rgba(180, 80, 40, 0.4)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let l = 0; l < 8; l++) {
+            const lx = (l * 85) % w;
+            ctx.moveTo(lx, horizonY);
+            ctx.lineTo(lx + 40, h);
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawPlanckDiagram(ctx, w, h, currentState) {
+      ctx.fillStyle = '#060912';
+      ctx.fillRect(0, 0, w, h);
+
+      const peakNm = 2898000 / Math.max(1000, currentState.temp);
+      peakWavelengthText.innerText = `λ_max: ${Math.round(peakNm)} нм`;
+
+      const minNm = 50;
+      const maxNm = 2400;
+
+      function nmToX(nm) {
+        return ((nm - minNm) / (maxNm - minNm)) * (w - 30) + 15;
+      }
+
+      const uvEndX = nmToX(380);
+      const visEndX = nmToX(750);
+
+      ctx.fillStyle = 'rgba(147, 51, 234, 0.08)';
+      ctx.fillRect(15, 0, Math.max(0, uvEndX - 15), h);
+
+      const visGrad = ctx.createLinearGradient(uvEndX, 0, visEndX, 0);
+      visGrad.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
+      visGrad.addColorStop(0.5, 'rgba(34, 197, 94, 0.15)');
+      visGrad.addColorStop(1, 'rgba(239, 68, 68, 0.15)');
+      ctx.fillStyle = visGrad;
+      ctx.fillRect(uvEndX, 0, Math.max(0, visEndX - uvEndX), h);
+
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.05)';
+      ctx.fillRect(visEndX, 0, Math.max(0, w - 15 - visEndX), h);
+
+      ctx.font = '8px sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText("УФ", 18, 12);
+      ctx.fillText("Оптика", uvEndX + 6, 12);
+      ctx.fillText("ИК-тепло", visEndX + 10, 12);
+
+      const t = currentState.temp;
+      ctx.beginPath();
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 1.8;
+
+      let first = true;
+      for (let nm = minNm; nm <= maxNm; nm += 20) {
+        const x = nmToX(nm);
+        const u = nm / peakNm;
+        const normIntensity = Math.pow(1 / u, 5) / (Math.exp(Math.min(25, 4.965 / u)) - 1);
+        const y = h - 14 - Math.min(h - 24, normIntensity * (h - 28) * 4.2);
+
+        if (first) {
+          ctx.moveTo(x, y);
+          first = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      const peakX = nmToX(peakNm);
+      if (peakX >= 15 && peakX <= w - 15) {
+        ctx.strokeStyle = 'rgba(255, 235, 59, 0.6)';
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(peakX, 15);
+        ctx.lineTo(peakX, h - 14);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    function drawHRDiagram(ctx, w, h, currentState) {
+      ctx.fillStyle = '#060912';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, (h / 4) * i);
+        ctx.lineTo(w, (h / 4) * i);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo((w / 4) * i, 0);
+        ctx.lineTo((w / 4) * i, h);
+        ctx.stroke();
+      }
+
+      function coords(temp, lum) {
+        const minLogT = 3.4;
+        const maxLogT = 4.65;
+        const logT = Math.log10(Math.max(2500, Math.min(45000, temp)));
+        const x = (1 - (logT - minLogT) / (maxLogT - minLogT)) * (w - 24) + 12;
+
+        const minLogL = -3.5;
+        const maxLogL = 4.2;
+        const logL = Math.log10(Math.max(0.0003, Math.min(15000, lum)));
+        const y = (1 - (logL - minLogL) / (maxLogL - minLogL)) * (h - 24) + 12;
+
+        return { x, y };
+      }
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < EVOLUTION_STAGES.length; i++) {
+        const p = coords(EVOLUTION_STAGES[i].temp, EVOLUTION_STAGES[i].l);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+
+      const curPos = coords(currentState.temp, currentState.l);
+      const starColors = getStarColor(currentState.temp);
+
+      ctx.fillStyle = starColors.outer;
+      ctx.beginPath();
+      ctx.arc(curPos.x, curPos.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = starColors.core;
+      ctx.beginPath();
+      ctx.arc(curPos.x, curPos.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '8.5px sans-serif';
+      ctx.fillText('Светимость L ↑', 6, 11);
+      ctx.fillText('← T (Горячее)', w - 68, h - 4);
+    }
+
+    function updateUI(state) {
+      valAge.innerText = state.t < 0 ? state.t.toFixed(3) : state.t.toFixed(2);
+      valRadius.innerText = state.r < 0.1 ? state.r.toFixed(3) : state.r >= 10 ? state.r.toFixed(1) : state.r.toFixed(2);
+      valLum.innerText = state.l < 0.01 ? state.l.toFixed(4) : state.l >= 100 ? Math.round(state.l) : state.l.toFixed(2);
+      valTemp.innerText = Math.round(state.temp);
+      valMass.innerText = state.mass.toFixed(2);
+      valHzDist.innerText = `${state.hzIn.toFixed(2)} - ${state.hzOut.toFixed(2)}`;
+      spectralBadge.innerText = state.spec;
+      phaseDesc.innerHTML = `<strong>${state.name}</strong><br>${state.desc}`;
+      timeSlider.value = state.t;
+
+      const hPct = Math.round(state.h * 100);
+      const hePct = Math.round(state.he * 100);
+      const cPct = Math.round(state.c * 100);
+      const oPct = Math.max(0, 100 - (hPct + hePct + cPct));
+
+      barH.style.width = `${hPct}%`;
+      barHe.style.width = `${hePct}%`;
+      barC.style.width = `${cPct}%`;
+      barO.style.width = `${oPct}%`;
+
+      hPctText.innerText = `H ${hPct}%`;
+      hePctText.innerText = `He ${hePct}%`;
+      coPctText.innerText = `C ${cPct}% | O ${oPct}%`;
+
+      const curPlanet = currentView === 'surface' ? currentPlanet : (cameraFocus === 'sun' ? 'earth' : cameraFocus);
+      const planetName = curPlanet === 'earth' ? 'Земля' : curPlanet === 'mars' ? 'Марс' : 'Европа';
+      const sTemp = calculateSurfaceTemp(curPlanet, state);
+      surfaceTempBadge.innerText = `Температура (${planetName}): ${sTemp > 0 ? '+' : ''}${sTemp}°C`;
+
+      const curPlanetDist = (curPlanet === 'earth' ? 1.00 : curPlanet === 'mars' ? 1.524 : 5.204) / Math.max(0.1, state.mass);
+      const inHz = curPlanetDist >= state.hzIn && curPlanetDist <= state.hzOut;
+
+      if (inHz) {
+        hzStatusBadge.className = 'hud-pill hud-hz-status';
+        hzStatusBadge.style.borderColor = 'rgba(34, 197, 94, 0.35)';
+        hzStatusBadge.style.color = '#86efac';
+        hzStatusBadge.innerText = `${planetName} в зоне обитаемости`;
+      } else if (curPlanetDist < state.hzIn) {
+        hzStatusBadge.className = 'hud-pill';
+        hzStatusBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        hzStatusBadge.style.color = '#fca5a5';
+        hzStatusBadge.innerText = `${planetName} перегрета (парниковый ад)`;
+      } else {
+        hzStatusBadge.className = 'hud-pill';
+        hzStatusBadge.style.borderColor = 'rgba(147, 197, 253, 0.4)';
+        hzStatusBadge.style.color = '#bfdbfe';
+        hzStatusBadge.innerText = `${planetName} заморожена (вечная мерзлота)`;
+      }
+
+      const tags = milestonesContainer.querySelectorAll('.milestone-tag');
+      tags.forEach(tg => {
+        const tt = parseFloat(tg.dataset.time);
+        if (Math.abs(tt - state.t) < 0.08) {
+          tg.classList.add('active');
+        } else {
+          tg.classList.remove('active');
+        }
+      });
+    }
+
+    function render(now) {
+      try {
+        const delta = (now - lastAnimTime) / 1000;
+        lastAnimTime = now;
+
+        if (isPlaying) {
+          currentAge += basePlaySpeed * speedMultiplier * delta * 4;
+          if (currentAge > 13.0) {
+            currentAge = 13.0;
+            isPlaying = false;
+            playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+          }
+        }
+
+        const state = getInterpolatedState(currentAge);
+        updateUI(state);
+        updateAudio(state);
+
+        const mRect = mainCanvas.parentElement.getBoundingClientRect();
+        const hRect = hrCanvas.parentElement.getBoundingClientRect();
+        const pRect = planckCanvas.parentElement.getBoundingClientRect();
+
+        if (currentView === 'space') {
+          drawSpaceView(mCtx, mRect.width, mRect.height, state, now);
+        } else {
+          drawSurfaceView(mCtx, mRect.width, mRect.height, state, now);
+        }
+
+        drawPlanckDiagram(pCtx, pRect.width, pRect.height, state);
+        drawHRDiagram(hCtx, hRect.width, hRect.height, state);
+      } catch (err) {
+        console.error("Render error:", err);
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    timeSlider.addEventListener('input', (e) => {
+      currentAge = parseFloat(e.target.value);
+    });
+
+    playBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        if (currentAge >= 13.0) currentAge = -0.05;
+        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+      } else {
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      }
+    });
+
+    speedBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        speedBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        speedMultiplier = parseFloat(btn.dataset.speed);
+      });
+    });
+
+    planetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        planetBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPlanet = btn.dataset.planet;
+        currentView = 'surface';
+        viewSpaceBtn.classList.remove('active');
+        cameraHudBadge.innerText = `Поверхность • ${currentPlanet === 'earth' ? 'Земля' : currentPlanet === 'mars' ? 'Марс' : 'Европа'}`;
+        camHint.style.display = 'none';
+      });
+    });
+
+    focusBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        focusBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        cameraFocus = btn.dataset.focus;
+        currentView = 'space';
+        viewSpaceBtn.classList.add('active');
+        planetBtns.forEach(b => b.classList.remove('active'));
+        const fName = cameraFocus === 'sun' ? 'Солнце' : cameraFocus === 'earth' ? 'Земля' : cameraFocus === 'mars' ? 'Марс' : 'Европа';
+        cameraHudBadge.innerText = `Орбитальная плоскость • Фокус: ${fName}`;
+        camHint.style.display = 'block';
+      });
+    });
+
+    viewSpaceBtn.addEventListener('click', () => {
+      currentView = 'space';
+      viewSpaceBtn.classList.add('active');
+      planetBtns.forEach(b => b.classList.remove('active'));
+      const fName = cameraFocus === 'sun' ? 'Солнце' : cameraFocus === 'earth' ? 'Земля' : cameraFocus === 'mars' ? 'Марс' : 'Европа';
+      cameraHudBadge.innerText = `Орбитальная плоскость • Фокус: ${fName}`;
+      camHint.style.display = 'block';
+    });
+
+    toggleHzBtn.addEventListener('click', () => {
+      isHzVisible = !isHzVisible;
+      if (isHzVisible) {
+        toggleHzBtn.classList.add('active');
+      } else {
+        toggleHzBtn.classList.remove('active');
+      }
+    });
+
+    toggleCutawayBtn.addEventListener('click', () => {
+      isCutaway = !isCutaway;
+      if (isCutaway) {
+        toggleCutawayBtn.classList.add('active');
+      } else {
+        toggleCutawayBtn.classList.remove('active');
+      }
+    });
+
+    soundBtn.addEventListener('click', toggleAudio);
+
+    screenshotBtn.addEventListener('click', () => {
+      try {
+        const link = document.createElement('a');
+        link.download = `solar_evolution_${currentAge.toFixed(2)}_Gyr.png`;
+        link.href = mainCanvas.toDataURL('image/png');
+        link.click();
+      } catch (e) {
+        console.warn("Screenshot failed:", e);
+      }
+    });
+
+    resetCamBtn.addEventListener('click', () => {
+      camX = 0;
+      camY = 0;
+      camZoom = 1.0;
+    });
+
+    mainCanvas.addEventListener('wheel', (e) => {
+      if (currentView !== 'space') return;
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      camZoom = Math.max(0.12, Math.min(30.0, camZoom * zoomFactor));
+    }, { passive: false });
+
+    mainCanvas.addEventListener('mousedown', (e) => {
+      if (currentView !== 'space') return;
+      isDragging = true;
+      dragStartX = e.clientX - camX;
+      dragStartY = e.clientY - camY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging || currentView !== 'space') return;
+      camX = e.clientX - dragStartX;
+      camY = e.clientY - dragStartY;
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    mainCanvas.addEventListener('touchstart', (e) => {
+      if (currentView !== 'space') return;
+      if (e.touches.length === 1) {
+        isDragging = true;
+        dragStartX = e.touches[0].clientX - camX;
+        dragStartY = e.touches[0].clientY - camY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, { passive: true });
+
+    mainCanvas.addEventListener('touchmove', (e) => {
+      if (currentView !== 'space') return;
+      if (e.touches.length === 1 && isDragging) {
+        camX = e.touches[0].clientX - dragStartX;
+        camY = e.touches[0].clientY - dragStartY;
+      } else if (e.touches.length === 2 && initialPinchDist) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = dist / initialPinchDist;
+        camZoom = Math.max(0.12, Math.min(30.0, camZoom * factor));
+        initialPinchDist = dist;
+      }
+    }, { passive: true });
+
+    mainCanvas.addEventListener('touchend', () => {
+      isDragging = false;
+      initialPinchDist = null;
+    });
+
+    resizeCanvases();
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>

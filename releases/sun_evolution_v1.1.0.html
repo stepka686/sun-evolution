@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Эволюция Солнца 2.0 — Расширенная симуляция</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: #03060c;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 10px 18px;
+      background: rgba(8, 12, 22, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      z-index: 30;
+    }
+
+    .title-group h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.03em;
+    }
+
+    .title-group p {
+      font-size: 0.76rem;
+      color: #94a3b8;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .pill-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .pill-btn.active {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 14px;
+      padding: 14px;
+      position: relative;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .canvas-card {
+      position: relative;
+      background: #010206;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      min-height: 500px;
+      display: flex;
+    }
+
+    canvas#mainCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    .canvas-hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .hud-badge {
+      background: rgba(4, 8, 18, 0.7);
+      backdrop-filter: blur(8px);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+    }
+
+    .cam-instructions {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(4, 8, 18, 0.6);
+      backdrop-filter: blur(6px);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      color: #64748b;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      pointer-events: none;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel {
+      background: rgba(10, 15, 28, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .panel-header {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stats-matrix {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .stat-val {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-unit {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-left: 2px;
+    }
+
+    .desc-box {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: #cbd5e1;
+      border-left: 2px solid #3b82f6;
+      padding-left: 8px;
+    }
+
+    .hr-container {
+      position: relative;
+      width: 100%;
+      height: 145px;
+    }
+
+    canvas#hrCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .core-legend {
+      margin-top: 8px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      line-height: 1.4;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .controls-shelf {
+      padding: 12px 18px 16px 18px;
+      background: rgba(8, 12, 22, 0.95);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 30;
+    }
+
+    .scrubber-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .play-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #2563eb;
+      border: none;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .play-btn:active {
+      transform: scale(0.94);
+    }
+
+    .slider-track-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+
+    input[type=range]:focus {
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 7px;
+      cursor: pointer;
+      background: #1e293b;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      height: 17px;
+      width: 17px;
+      border-radius: 50%;
+      background: #60a5fa;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -5.5px;
+      box-shadow: 0 0 10px rgba(96, 165, 250, 0.7);
+      transition: transform 0.1s;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.18);
+    }
+
+    .scale-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: #64748b;
+    }
+
+    .presets-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .presets-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: #94a3b8;
+      font-size: 0.72rem;
+      padding: 5px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .preset-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .preset-btn.active-p {
+      border-color: #3b82f6;
+      color: #93c5fd;
+      background: rgba(59, 130, 246, 0.15);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-group">
+      <h1>Эволюция Солнца 2.0</h1>
+      <p>Интерактивная астрофизическая модель полного цикла</p>
+    </div>
+
+    <div class="top-actions">
+      <button class="pill-btn active" id="viewSpaceBtn">Космос</button>
+      <button class="pill-btn" id="viewEarthBtn">С Земли</button>
+      <button class="pill-btn" id="toggleCutawayBtn">Разрез недр: Выкл</button>
+      <button class="pill-btn" id="soundBtn">Звук: Выкл</button>
+      <button class="pill-btn" id="resetCamBtn" title="Сбросить масштаб и положение камеры">Сброс вида</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="canvas-card">
+      <canvas id="mainCanvas"></canvas>
+      <div class="canvas-hud">
+        <div class="hud-badge" id="cameraHudText">Космос • Орбитальная плоскость</div>
+        <div class="hud-badge" id="coreHudText" style="display:none; color:#f59e0b;">Режим разреза активен</div>
+      </div>
+      <div class="cam-instructions" id="camHint">Колесико / жест пальцами — зум • Зажать и тянуть — панорама</div>
+    </div>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="panel-header">
+          <span>Физика звезды</span>
+          <span id="spectralClassBadge" style="color: #60a5fa;">Спектр: G2V</span>
+        </div>
+        <div class="stats-matrix">
+          <div class="stat-box">
+            <span class="stat-label">Возраст звезды</span>
+            <span class="stat-val" id="valAge">4.60</span>
+            <span class="stat-unit">млрд лет</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Радиус фотосферы</span>
+            <span class="stat-val" id="valRadius">1.00</span>
+            <span class="stat-unit">R☉</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Светимость</span>
+            <span class="stat-val" id="valLum">1.00</span>
+            <span class="stat-unit">L☉</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Температура</span>
+            <span class="stat-val" id="valTemp">5778</span>
+            <span class="stat-unit">K</span>
+          </div>
+        </div>
+        <div class="desc-box" id="phaseDescription">
+          Главная последовательность. В ядре стабильно протекает протон-протонный термоядерный цикл.
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">Диаграмма Герцшпрунга — Рассела</div>
+        <div class="hr-container">
+          <canvas id="hrCanvas"></canvas>
+        </div>
+        <div class="core-legend" id="coreExplanation">
+          Внешний вид: грануляционные конвективные ячейки фотосферы и протуберанцы.
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="controls-shelf">
+    <div class="scrubber-row">
+      <button class="play-btn" id="playBtn" title="Воспроизведение">
+        <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </button>
+
+      <div class="slider-track-wrap">
+        <input type="range" id="timeSlider" min="-0.05" max="13.0" step="0.005" value="4.60">
+        <div class="scale-ticks">
+          <span>-0.05 (Коллапс)</span>
+          <span>0.0 (ZAMS)</span>
+          <span>4.6 (Сейчас)</span>
+          <span>10.0 (Субгигант)</span>
+          <span>12.2 (Гигант)</span>
+          <span>13.0 (Карлик)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="presets-row">
+      <button class="preset-btn" data-time="-0.045">1. Коллапс облака (-0.05)</button>
+      <button class="preset-btn" data-time="-0.015">2. Т Тельца (-0.02)</button>
+      <button class="preset-btn" data-time="0.0">3. Рождение (0.0)</button>
+      <button class="preset-btn active-p" data-time="4.6">4. Сейчас (4.6)</button>
+      <button class="preset-btn" data-time="6.5">5. Испарение океанов (6.5)</button>
+      <button class="preset-btn" data-time="10.2">6. Конец водорода (10.2)</button>
+      <button class="preset-btn" data-time="12.0">7. Красный гигант (12.0)</button>
+      <button class="preset-btn" data-time="12.23">8. Вспышка гелия (12.23)</button>
+      <button class="preset-btn" data-time="12.35">9. Планетарная туманность (12.35)</button>
+      <button class="preset-btn" data-time="12.9">10. Белый карлик (12.9)</button>
+    </div>
+  </div>
+
+  <script>
+    const EVOLUTION_STAGES = [
+      {
+        t: -0.05,
+        r: 25.0,
+        l: 18.0,
+        temp: 3400,
+        spec: "Протозвезда (Класс 0/I)",
+        name: "Гравитационный коллапс молекулярного облака",
+        desc: "Газопылевой кокон сжимается под собственной гравитацией. В центре разгорается сверхплотное протоядро, окруженное аккреционным диском и биполярными струями плазмы (джеты Хербига — Аро).",
+        coreState: "Гравитационное сжатие газа. Термоядерный синтез еще не начался.",
+        earthSky: [12, 8, 14],
+        earthGround: [25, 20, 22]
+      },
+      {
+        t: -0.02,
+        r: 3.2,
+        l: 4.5,
+        temp: 4200,
+        spec: "Звезда типа Т Тельца",
+        name: "Стадия Т Тельца (До главной последовательности)",
+        desc: "Молодая звезда очищает окружение сверхмощным звездным ветром. Энергия берется исключительно из гравитационного сжатия Кельвина — Гельмгольца. Вокруг вращается протопланетный диск.",
+        coreState: "Полностью конвективная звезда. Ядро постепенно нагревается до зажигания водорода.",
+        earthSky: [35, 20, 18],
+        earthGround: [40, 25, 20]
+      },
+      {
+        t: 0.00,
+        r: 0.89,
+        l: 0.70,
+        temp: 5600,
+        spec: "ZAMS • G2V",
+        name: "Нулевой возраст главной последовательности (ZAMS)",
+        desc: "В ядре достигнута температура в 15 миллионов градусов. Зажегся стабильный водородный термоядерный цикл. Солнце обрело гидростатическое равновесие и начало самостоятельную жизнь.",
+        coreState: "Активное протон-протонное ядро водорода (до 0.25 R☉), лучистая зона и внешняя конвекция.",
+        earthSky: [25, 40, 75],
+        earthGround: [45, 55, 40]
+      },
+      {
+        t: 4.60,
+        r: 1.00,
+        l: 1.00,
+        temp: 5778,
+        spec: "Желтый карлик • G2V",
+        name: "Главная последовательность (Наше время)",
+        desc: "Идеальный баланс гравитации и давления излучения. Солнцу 4.6 миллиарда лет. На Земле сформировались стабильный климат, жидкие океаны и разнообразная биосфера.",
+        coreState: "Синтез гелия из водорода. Ядро накопило около 50% гелиевой 'золы'.",
+        earthSky: [65, 145, 225],
+        earthGround: [40, 110, 50]
+      },
+      {
+        t: 6.50,
+        r: 1.18,
+        l: 1.25,
+        temp: 5840,
+        spec: "Желтый карлик • G2V",
+        name: "Парниковый коллапс биосферы",
+        desc: "Светимость Солнца выросла на 25%. Океаны Земли закипают и испаряются в атмосферу, создавая необратимый гиперпарниковый эффект. Жизнь на поверхности угасает.",
+        coreState: "Ядро уплотняется, ускоряя термоядерные реакции в центральной зоне.",
+        earthSky: [190, 170, 130],
+        earthGround: [175, 125, 75]
+      },
+      {
+        t: 10.20,
+        r: 1.60,
+        l: 2.20,
+        temp: 5720,
+        spec: "Субгигант • G0IV",
+        name: "Исчерпание водорода в ядре",
+        desc: "Водород в самом центре полностью выгорел в гелий. Ядро теряет лучевую опору и сжимается, нагревая прилегающие слои. Солнце медленно раздувается и желтеет.",
+        coreState: "Инертное изотермическое гелиевое ядро; горение водорода сместилось в прилегающий слой.",
+        earthSky: [150, 75, 45],
+        earthGround: [90, 50, 35]
+      },
+      {
+        t: 11.60,
+        r: 6.0,
+        l: 25.0,
+        temp: 4700,
+        spec: "Оранжевый гигант • K2III",
+        name: "Ветвь красных гигантов (Подъем)",
+        desc: "Слоевой источник водорода горит со сверхинтенсивностью. Оболочка звезды колоссально расширяется и остывает. Меркурий опален и теряет остатки коры.",
+        coreState: "Вырожденное гелиевое ядро сжимается и разогревается; горение идет в тонкой сферической оболочке.",
+        earthSky: [110, 40, 20],
+        earthGround: [70, 32, 20]
+      },
+      {
+        t: 12.00,
+        r: 45.0,
+        l: 500.0,
+        temp: 3650,
+        spec: "Красный гигант • M1III",
+        name: "Красный гигант: поглощение Меркурия",
+        desc: "Фотосфера Солнца поглотила Меркурий. На Земле дневная жара плавит гранит в базальтовую магму под багровым небом, перечеркнутым солнечными протуберанцами.",
+        coreState: "Давление вырожденного электронного газа удерживает гелиевое ядро от дальнейшего коллапса.",
+        earthSky: [70, 20, 15],
+        earthGround: [195, 55, 12]
+      },
+      {
+        t: 12.18,
+        r: 190.0,
+        l: 2700.0,
+        temp: 3050,
+        spec: "Яркий красный гигант • M3III",
+        name: "Вершина ветви гигантов: гибель Венеры",
+        desc: "Венера поглощена разросшейся плазмой. Гигантский диск светила занимает треть небосклона Земли. Поверхность планеты представляет собой бурлящий океан лавы.",
+        coreState: "Температура ядра приближается к 100 млн K. Назревает взрывное воспламенение гелия.",
+        earthSky: [50, 10, 12],
+        earthGround: [230, 70, 18]
+      },
+      {
+        t: 12.23,
+        r: 11.0,
+        l: 45.0,
+        temp: 4800,
+        spec: "Горизонтальная ветвь • K0III",
+        name: "Гелиевая вспышка и горизонтальная ветвь",
+        desc: "В ядре произошел термоядерный взрыв гелия (тройная альфа-реакция). Вырожденность снята, ядро расширилось, а внешняя оболочка временно сжалась и нагрелась.",
+        coreState: "Стабильное горение гелия в углерод и кислород в центре, плюс слоевой водородный источник вокруг.",
+        earthSky: [85, 35, 25],
+        earthGround: [85, 42, 28]
+      },
+      {
+        t: 12.29,
+        r: 220.0,
+        l: 3400.0,
+        temp: 2900,
+        spec: "Асимптотический гигант (AGB)",
+        name: "Асимптотическая ветвь: пульсации и суперветер",
+        desc: "Гелий в ядре исчерпан. Звезда пульсирует чудовищными тепловыми волнами, срывая с себя верхние слои мощнейшим звездным ветром. Земля обуглена до ядра.",
+        coreState: "Инертное углеродно-кислородное ядро, слоевые источники гелия и водорода.",
+        earthSky: [40, 8, 10],
+        earthGround: [215, 60, 10]
+      },
+      {
+        t: 12.35,
+        r: 80.0,
+        l: 1500.0,
+        temp: 35000,
+        spec: "Планетарная туманность",
+        name: "Сброс оболочки • Планетарная туманность",
+        desc: "Внешняя газовая мантия полностью сорвана и улетает в межзвездную среду со скоростью 30 км/с. Открывшееся горячее ядро ионизирует газ ультрафиолетом.",
+        coreState: "Обнаженное субзвездное ядро. Термоядерные реакции прекращаются навсегда.",
+        earthSky: [18, 32, 50],
+        earthGround: [22, 20, 26]
+      },
+      {
+        t: 13.00,
+        r: 0.012,
+        l: 0.0018,
+        temp: 11000,
+        spec: "Белый карлик • DA",
+        name: "Углеродно-кислородный белый карлик",
+        desc: "Газовая туманность растворилась в Галактике. Остался сверхплотный остывающий шар размером с Землю и массой в пол-Солнца. На замерзшей мертвой Земле царит вечная тьма.",
+        coreState: "Сверхплотное кристаллическое углеродно-кислородное вещество в квантово-вырожденном состоянии.",
+        earthSky: [2, 4, 8],
+        earthGround: [10, 12, 16]
+      }
+    ];
+
+    let currentAge = 4.60;
+    let isPlaying = false;
+    let playSpeed = 0.12;
+    let currentView = 'space';
+    let isCutaway = false;
+    let isSoundOn = false;
+    let lastAnimTime = performance.now();
+
+    let camX = 0;
+    let camY = 0;
+    let camZoom = 1.0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialPinchDist = null;
+
+    const mainCanvas = document.getElementById('mainCanvas');
+    const mCtx = mainCanvas.getContext('2d');
+    const hrCanvas = document.getElementById('hrCanvas');
+    const hCtx = hrCanvas.getContext('2d');
+
+    const valAge = document.getElementById('valAge');
+    const valRadius = document.getElementById('valRadius');
+    const valLum = document.getElementById('valLum');
+    const valTemp = document.getElementById('valTemp');
+    const spectralBadge = document.getElementById('spectralClassBadge');
+    const phaseDesc = document.getElementById('phaseDescription');
+    const coreExplanation = document.getElementById('coreExplanation');
+    const cameraHudText = document.getElementById('cameraHudText');
+    const coreHudText = document.getElementById('coreHudText');
+    const camHint = document.getElementById('camHint');
+    const timeSlider = document.getElementById('timeSlider');
+    const playBtn = document.getElementById('playBtn');
+    const playIcon = document.getElementById('playIcon');
+    const viewSpaceBtn = document.getElementById('viewSpaceBtn');
+    const viewEarthBtn = document.getElementById('viewEarthBtn');
+    const toggleCutawayBtn = document.getElementById('toggleCutawayBtn');
+    const soundBtn = document.getElementById('soundBtn');
+    const resetCamBtn = document.getElementById('resetCamBtn');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+
+    let audioCtx = null;
+    let osc1 = null;
+    let osc2 = null;
+    let noiseNode = null;
+    let filterNode = null;
+    let masterGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        masterGain.connect(audioCtx.destination);
+
+        filterNode = audioCtx.createBiquadFilter();
+        filterNode.type = 'lowpass';
+        filterNode.frequency.setValueAtTime(200, audioCtx.currentTime);
+        filterNode.connect(masterGain);
+
+        osc1 = audioCtx.createOscillator();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(55, audioCtx.currentTime);
+
+        osc2 = audioCtx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(56.5, audioCtx.currentTime);
+
+        const bufferSize = audioCtx.sampleRate * 2;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+
+        noiseNode = audioCtx.createBufferSource();
+        noiseNode.buffer = noiseBuffer;
+        noiseNode.loop = true;
+
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        noiseNode.connect(noiseGain);
+        noiseGain.connect(filterNode);
+
+        osc1.connect(filterNode);
+        osc2.connect(filterNode);
+
+        osc1.start();
+        osc2.start();
+        noiseNode.start();
+      } catch (e) {
+        console.warn("Audio Context init error", e);
+      }
+    }
+
+    function updateAudio(state) {
+      if (!audioCtx || !isSoundOn) return;
+      const t = audioCtx.currentTime;
+
+      if (state.t < 0) {
+        osc1.frequency.setTargetAtTime(45 + Math.abs(state.t) * 400, t, 0.1);
+        osc2.frequency.setTargetAtTime(70, t, 0.1);
+        filterNode.frequency.setTargetAtTime(320, t, 0.1);
+        masterGain.gain.setTargetAtTime(0.2, t, 0.1);
+      } else if (state.t <= 10.0) {
+        osc1.frequency.setTargetAtTime(55, t, 0.1);
+        osc2.frequency.setTargetAtTime(110, t, 0.1);
+        filterNode.frequency.setTargetAtTime(240, t, 0.1);
+        masterGain.gain.setTargetAtTime(0.18, t, 0.1);
+      } else if (state.t < 12.30) {
+        const giantPitch = Math.max(28, 60 - Math.log10(state.r) * 12);
+        osc1.frequency.setTargetAtTime(giantPitch, t, 0.1);
+        osc2.frequency.setTargetAtTime(giantPitch * 1.5, t, 0.1);
+        filterNode.frequency.setTargetAtTime(450, t, 0.1);
+        masterGain.gain.setTargetAtTime(0.28, t, 0.1);
+      } else if (state.t <= 12.60) {
+        osc1.frequency.setTargetAtTime(140, t, 0.1);
+        osc2.frequency.setTargetAtTime(280, t, 0.1);
+        filterNode.frequency.setTargetAtTime(900, t, 0.1);
+        masterGain.gain.setTargetAtTime(0.25, t, 0.1);
+      } else {
+        osc1.frequency.setTargetAtTime(440, t, 0.1);
+        osc2.frequency.setTargetAtTime(442, t, 0.1);
+        filterNode.frequency.setTargetAtTime(600, t, 0.1);
+        masterGain.gain.setTargetAtTime(0.06, t, 0.1);
+      }
+    }
+
+    function toggleAudio() {
+      initAudio();
+      if (!audioCtx) return;
+
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      isSoundOn = !isSoundOn;
+      if (isSoundOn) {
+        soundBtn.classList.add('active');
+        soundBtn.innerText = 'Звук: Вкл';
+        masterGain.gain.setTargetAtTime(0.2, audioCtx.currentTime, 0.15);
+      } else {
+        soundBtn.classList.remove('active');
+        soundBtn.innerText = 'Звук: Выкл';
+        masterGain.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.1);
+      }
+    }
+
+    function resizeCanvases() {
+      const dpr = window.devicePixelRatio || 1;
+      
+      const mRect = mainCanvas.parentElement.getBoundingClientRect();
+      mainCanvas.width = mRect.width * dpr;
+      mainCanvas.height = mRect.height * dpr;
+      mCtx.resetTransform();
+      mCtx.scale(dpr, dpr);
+
+      const hRect = hrCanvas.parentElement.getBoundingClientRect();
+      hrCanvas.width = hRect.width * dpr;
+      hrCanvas.height = hRect.height * dpr;
+      hCtx.resetTransform();
+      hCtx.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', resizeCanvases);
+
+    function lerp(a, b, f) {
+      return a + (b - a) * f;
+    }
+
+    function lerpColor(c1, c2, f) {
+      return [
+        Math.round(lerp(c1[0], c2[0], f)),
+        Math.round(lerp(c1[1], c2[1], f)),
+        Math.round(lerp(c1[2], c2[2], f))
+      ];
+    }
+
+    function getInterpolatedState(age) {
+      if (age <= EVOLUTION_STAGES[0].t) return EVOLUTION_STAGES[0];
+      if (age >= EVOLUTION_STAGES[EVOLUTION_STAGES.length - 1].t) {
+        return EVOLUTION_STAGES[EVOLUTION_STAGES.length - 1];
+      }
+
+      let i = 0;
+      while (i < EVOLUTION_STAGES.length - 1 && EVOLUTION_STAGES[i + 1].t < age) {
+        i++;
+      }
+
+      const s0 = EVOLUTION_STAGES[i];
+      const s1 = EVOLUTION_STAGES[i + 1];
+      const factor = (age - s0.t) / (s1.t - s0.t);
+
+      const logR = lerp(Math.log10(s0.r), Math.log10(s1.r), factor);
+      const logL = lerp(Math.log10(s0.l), Math.log10(s1.l), factor);
+      const temp = lerp(s0.temp, s1.temp, factor);
+
+      return {
+        t: age,
+        r: Math.pow(10, logR),
+        l: Math.pow(10, logL),
+        temp: temp,
+        spec: factor < 0.5 ? s0.spec : s1.spec,
+        name: factor < 0.5 ? s0.name : s1.name,
+        desc: factor < 0.5 ? s0.desc : s1.desc,
+        coreState: factor < 0.5 ? s0.coreState : s1.coreState,
+        earthSky: lerpColor(s0.earthSky, s1.earthSky, factor),
+        earthGround: lerpColor(s0.earthGround, s1.earthGround, factor)
+      };
+    }
+
+    function getStarColor(temp) {
+      if (temp < 3100) return { core: '#ff2800', outer: '#991100', corona: 'rgba(255, 40, 0, 0.25)' };
+      if (temp < 4000) return { core: '#ff772e', outer: '#cf3800', corona: 'rgba(255, 110, 40, 0.3)' };
+      if (temp < 5200) return { core: '#ffb648', outer: '#f57c00', corona: 'rgba(255, 180, 70, 0.35)' };
+      if (temp < 6000) return { core: '#fffbe8', outer: '#fbc02d', corona: 'rgba(255, 220, 100, 0.4)' };
+      if (temp < 10000) return { core: '#ffffff', outer: '#90caf9', corona: 'rgba(144, 202, 249, 0.45)' };
+      return { core: '#edf5ff', outer: '#2979ff', corona: 'rgba(41, 121, 255, 0.5)' };
+    }
+
+    const spaceStars = [];
+    for (let i = 0; i < 220; i++) {
+      spaceStars.push({
+        x: Math.random() * 2 - 1,
+        y: Math.random() * 2 - 1,
+        size: Math.random() * 1.5 + 0.4,
+        alpha: Math.random() * 0.7 + 0.3
+      });
+    }
+
+    const protoParticles = [];
+    for (let i = 0; i < 160; i++) {
+      protoParticles.push({
+        angle: Math.random() * Math.PI * 2,
+        dist: Math.random() * 0.9 + 0.1,
+        speed: (Math.random() * 0.8 + 0.5) * (Math.random() > 0.5 ? 1 : -1),
+        size: Math.random() * 2.5 + 1.0,
+        alpha: Math.random() * 0.6 + 0.2
+      });
+    }
+
+    function drawSpaceView(ctx, w, h, state, now) {
+      ctx.fillStyle = '#010308';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.save();
+      ctx.translate(w / 2 + camX, h / 2 + camY);
+      ctx.scale(camZoom, camZoom);
+
+      const maxDim = Math.max(w, h);
+      for (let s of spaceStars) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha * (0.8 + 0.2 * Math.sin(now * 0.002 + s.x * 10))})`;
+        ctx.beginPath();
+        ctx.arc(s.x * maxDim * 1.5, s.y * maxDim * 1.5, s.size / camZoom, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const baseUnit = Math.min(w, h) * 0.36;
+
+      const orbits = [
+        { name: 'Меркурий', rAU: 0.387, color: 'rgba(180, 160, 140, 0.3)', speed: 4.1 },
+        { name: 'Венера', rAU: 0.723, color: 'rgba(230, 200, 140, 0.3)', speed: 1.6 },
+        { name: 'Земля', rAU: 1.000, color: 'rgba(100, 180, 255, 0.4)', speed: 1.0 },
+        { name: 'Марс', rAU: 1.524, color: 'rgba(255, 120, 90, 0.25)', speed: 0.53 }
+      ];
+
+      if (state.t >= 0.0) {
+        for (let o of orbits) {
+          const radPx = (o.rAU / 1.524) * baseUnit;
+          ctx.strokeStyle = o.color;
+          ctx.lineWidth = 1 / camZoom;
+          ctx.setLineDash([3 / camZoom, 5 / camZoom]);
+          ctx.beginPath();
+          ctx.arc(0, 0, radPx, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          const angle = now * 0.0003 * o.speed;
+          const px = Math.cos(angle) * radPx;
+          const py = Math.sin(angle) * radPx;
+
+          ctx.fillStyle = o.color;
+          ctx.beginPath();
+          ctx.arc(px, py, 2.5 / camZoom, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.font = `${Math.max(9, Math.round(11 / camZoom))}px sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.45)';
+          ctx.fillText(o.name, radPx + 4 / camZoom, -4 / camZoom);
+        }
+      }
+
+      if (state.t < 0.0) {
+        const protoProg = (state.t + 0.05) / 0.05;
+        const diskRadius = baseUnit * (1.6 - protoProg * 0.6);
+
+        const diskGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, diskRadius);
+        diskGrad.addColorStop(0, 'rgba(255, 160, 60, 0.6)');
+        diskGrad.addColorStop(0.3, 'rgba(180, 70, 20, 0.35)');
+        diskGrad.addColorStop(0.7, 'rgba(100, 30, 10, 0.18)');
+        diskGrad.addColorStop(1, 'rgba(30, 10, 5, 0)');
+
+        ctx.save();
+        ctx.scale(1.0, 0.38);
+        ctx.fillStyle = diskGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, diskRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        for (let p of protoParticles) {
+          const curAngle = p.angle + (now * 0.0006 * p.speed);
+          const rCur = p.dist * diskRadius;
+          const px = Math.cos(curAngle) * rCur;
+          const py = Math.sin(curAngle) * rCur;
+
+          ctx.fillStyle = `rgba(255, 200, 140, ${p.alpha * (1 - protoProg * 0.5)})`;
+          ctx.beginPath();
+          ctx.arc(px, py, p.size / camZoom, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        const jetLen = baseUnit * (1.8 - protoProg * 0.5);
+        const jetGrad = ctx.createLinearGradient(0, -jetLen, 0, jetLen);
+        jetGrad.addColorStop(0, 'rgba(100, 200, 255, 0)');
+        jetGrad.addColorStop(0.4, 'rgba(120, 220, 255, 0.5)');
+        jetGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.9)');
+        jetGrad.addColorStop(0.6, 'rgba(120, 220, 255, 0.5)');
+        jetGrad.addColorStop(1, 'rgba(100, 200, 255, 0)');
+
+        ctx.strokeStyle = jetGrad;
+        ctx.lineWidth = 3.5 / camZoom;
+        ctx.beginPath();
+        ctx.moveTo(0, -jetLen);
+        ctx.lineTo(0, jetLen);
+        ctx.stroke();
+      }
+
+      if (state.t >= 12.30 && state.t <= 12.75) {
+        const nebFactor = (state.t - 12.30) / 0.45;
+        const maxNebRad = baseUnit * (1.0 + nebFactor * 3.5);
+        const nebGrad = ctx.createRadialGradient(0, 0, maxNebRad * 0.15, 0, 0, maxNebRad);
+        nebGrad.addColorStop(0, 'rgba(0, 255, 220, 0)');
+        nebGrad.addColorStop(0.45, `rgba(0, 220, 230, ${0.45 * (1 - nebFactor)})`);
+        nebGrad.addColorStop(0.8, `rgba(190, 60, 230, ${0.4 * (1 - nebFactor)})`);
+        nebGrad.addColorStop(1, 'rgba(20, 5, 45, 0)');
+
+        ctx.fillStyle = nebGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, maxNebRad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const sunRadiusAU = state.r / 215.0;
+      let starPx = (sunRadiusAU / 1.524) * baseUnit;
+
+      if (state.r < 0.05) {
+        starPx = 3.5;
+      } else if (starPx < 6) {
+        starPx = 6;
+      }
+
+      const colors = getStarColor(state.temp);
+
+      if (!isCutaway) {
+        const glowGrad = ctx.createRadialGradient(0, 0, starPx * 0.4, 0, 0, starPx * 3.2);
+        glowGrad.addColorStop(0, colors.corona);
+        glowGrad.addColorStop(0.35, colors.corona);
+        glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, starPx * 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = colors.outer;
+        ctx.beginPath();
+        ctx.arc(0, 0, starPx, 0, Math.PI * 2);
+        ctx.fill();
+
+        const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, starPx);
+        coreGrad.addColorStop(0, colors.core);
+        coreGrad.addColorStop(0.85, colors.outer);
+        coreGrad.addColorStop(1, colors.outer);
+
+        ctx.fillStyle = coreGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, starPx, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (starPx * camZoom > 25 && state.r > 0.05) {
+          ctx.save();
+          ctx.clip();
+          const granCount = Math.min(45, Math.round(starPx * camZoom * 0.4));
+          for (let i = 0; i < granCount; i++) {
+            const ga = (i * 137.5 * Math.PI) / 180;
+            const gr = Math.sqrt(i / granCount) * (starPx * 0.88);
+            const gx = Math.cos(ga) * gr;
+            const gy = Math.sin(ga) * gr;
+            const gPulse = Math.sin(now * 0.003 + i * 2.5) * 0.2 + 0.8;
+            ctx.fillStyle = `rgba(0, 0, 0, ${0.12 * gPulse})`;
+            ctx.beginPath();
+            ctx.arc(gx, gy, (starPx * 0.12) * gPulse, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+
+          const promCount = 6;
+          for (let p = 0; p < promCount; p++) {
+            const pa = (p * (Math.PI * 2 / promCount)) + (now * 0.0002);
+            const pl = starPx * (1.08 + 0.12 * Math.sin(now * 0.004 + p * 3));
+            const px = Math.cos(pa) * pl;
+            const py = Math.sin(pa) * pl;
+            ctx.strokeStyle = colors.corona;
+            ctx.lineWidth = 2 / camZoom;
+            ctx.beginPath();
+            ctx.arc(px, py, starPx * 0.1, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      } else {
+        drawCutawayCore(ctx, starPx, state, now);
+      }
+
+      if (state.r < 0.05) {
+        ctx.strokeStyle = 'rgba(210, 235, 255, 0.8)';
+        ctx.lineWidth = 1.2 / camZoom;
+        const cross = 18 / camZoom;
+        ctx.beginPath();
+        ctx.moveTo(-cross, 0);
+        ctx.lineTo(cross, 0);
+        ctx.moveTo(0, -cross);
+        ctx.lineTo(0, cross);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCutawayCore(ctx, starPx, state, now) {
+      const r = Math.max(starPx, 40 / camZoom);
+
+      ctx.fillStyle = 'rgba(255, 60, 20, 0.25)';
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (state.t < 0.0) {
+        ctx.fillStyle = '#ff8f00';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5 / camZoom;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = `${Math.max(9, Math.round(11 / camZoom))}px sans-serif`;
+        ctx.fillText("Коллапсирующее протоядро", r * 0.55, 0);
+        return;
+      }
+
+      if (state.t <= 10.0) {
+        ctx.fillStyle = 'rgba(255, 140, 20, 0.45)';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2);
+        ctx.fill();
+
+        const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.28);
+        coreGrad.addColorStop(0, '#ffffff');
+        coreGrad.addColorStop(0.6, '#ffe082');
+        coreGrad.addColorStop(1, '#ff6f00');
+        ctx.fillStyle = coreGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = `${Math.max(9, Math.round(10 / camZoom))}px sans-serif`;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillText("p-p Ядро (H → He)", r * 0.32, 4 / camZoom);
+        ctx.fillStyle = 'rgba(255,200,100,0.7)';
+        ctx.fillText("Лучистая зона", r * 0.75, 4 / camZoom);
+      } else if (state.t <= 12.22) {
+        ctx.fillStyle = '#607d8b';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = `rgba(255, 235, 59, ${0.7 + 0.3 * Math.sin(now * 0.006)})`;
+        ctx.lineWidth = 3 / camZoom;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.22, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.font = `${Math.max(9, Math.round(10 / camZoom))}px sans-serif`;
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillText("Слоевой источник (H → He)", r * 0.26, 4 / camZoom);
+        ctx.fillStyle = '#cfd8dc';
+        ctx.fillText("Гелиевое ядро", -r * 0.45, -r * 0.2);
+      } else if (state.t < 12.35) {
+        ctx.fillStyle = '#37474f';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#00e676';
+        ctx.lineWidth = 2 / camZoom;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.16, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffeb3b';
+        ctx.lineWidth = 2 / camZoom;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.22, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.font = `${Math.max(9, Math.round(10 / camZoom))}px sans-serif`;
+        ctx.fillStyle = '#00e676';
+        ctx.fillText("Слой He → C, O", r * 0.25, -6 / camZoom);
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillText("Слой H → He", r * 0.25, 12 / camZoom);
+      } else {
+        const wdGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        wdGrad.addColorStop(0, '#ffffff');
+        wdGrad.addColorStop(0.5, '#bbdefb');
+        wdGrad.addColorStop(1, '#1e88e5');
+        ctx.fillStyle = wdGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = `${Math.max(9, Math.round(10 / camZoom))}px sans-serif`;
+        ctx.fillStyle = '#fff';
+        ctx.fillText("Кристаллический C/O", r + 8 / camZoom, 4 / camZoom);
+      }
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 1.5 / camZoom;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawEarthView(ctx, w, h, state, now) {
+      const skyRGB = state.earthSky;
+      const groundRGB = state.earthGround;
+
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.72);
+      skyGrad.addColorStop(0, `rgb(${Math.round(skyRGB[0]*0.35)}, ${Math.round(skyRGB[1]*0.35)}, ${Math.round(skyRGB[2]*0.45)})`);
+      skyGrad.addColorStop(0.7, `rgb(${skyRGB[0]}, ${skyRGB[1]}, ${skyRGB[2]})`);
+      skyGrad.addColorStop(1, `rgb(${Math.min(255, skyRGB[0]*1.25)}, ${Math.min(255, skyRGB[1]*1.15)}, ${Math.min(255, skyRGB[2]*1.05)})`);
+      
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      if (skyRGB[0] < 45 && skyRGB[1] < 45) {
+        for (let s of spaceStars) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha * 0.9})`;
+          ctx.beginPath();
+          ctx.arc((s.x + 1) * 0.5 * w, (s.y + 1) * 0.35 * h, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (state.t < 0.0) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 140, 40, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(w * 0.1, 0);
+        ctx.lineTo(w * 0.9, 0);
+        ctx.lineTo(w * 0.5, h * 0.65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (state.t >= 12.30 && state.t <= 12.75) {
+        const factor = (state.t - 12.30) / 0.45;
+        const nebSky = ctx.createRadialGradient(w * 0.5, h * 0.35, 15, w * 0.5, h * 0.35, w * 0.75);
+        nebSky.addColorStop(0, `rgba(0, 255, 220, ${0.45 * (1 - factor)})`);
+        nebSky.addColorStop(0.4, `rgba(180, 50, 240, ${0.38 * (1 - factor)})`);
+        nebSky.addColorStop(0.85, 'rgba(0,0,0,0)');
+        ctx.fillStyle = nebSky;
+        ctx.fillRect(0, 0, w, h * 0.75);
+      }
+
+      const sunCenterX = w * 0.5;
+      const sunCenterY = h * 0.4;
+      
+      let angularRadius;
+      if (state.r < 0.05) {
+        angularRadius = 2.5;
+      } else {
+        const basePx = 18;
+        angularRadius = basePx * Math.pow(state.r, 0.56);
+      }
+
+      const colors = getStarColor(state.temp);
+
+      const earthSunGlow = ctx.createRadialGradient(
+        sunCenterX, sunCenterY, angularRadius * 0.3,
+        sunCenterX, sunCenterY, Math.max(angularRadius * 2.5, 45)
+      );
+      earthSunGlow.addColorStop(0, colors.core);
+      earthSunGlow.addColorStop(0.4, colors.outer);
+      earthSunGlow.addColorStop(1, 'rgba(0,0,0,0)');
+
+      ctx.fillStyle = earthSunGlow;
+      ctx.beginPath();
+      ctx.arc(sunCenterX, sunCenterY, Math.max(angularRadius * 2.5, 45), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = colors.core;
+      ctx.beginPath();
+      ctx.arc(sunCenterX, sunCenterY, angularRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (state.temp < 3900 && angularRadius > 40) {
+        for (let i = 0; i < 5; i++) {
+          const spotX = sunCenterX + (Math.sin(i * 1.8 + now * 0.0003) * angularRadius * 0.6);
+          const spotY = sunCenterY + (Math.cos(i * 2.4 + now * 0.0004) * angularRadius * 0.5);
+          ctx.fillStyle = 'rgba(100, 10, 0, 0.4)';
+          ctx.beginPath();
+          ctx.arc(spotX, spotY, angularRadius * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      const horizonY = h * 0.72;
+
+      ctx.beginPath();
+      ctx.moveTo(0, horizonY);
+      for (let x = 0; x <= w; x += 20) {
+        const elevated = Math.sin(x * 0.006) * 12 + Math.cos(x * 0.02) * 6;
+        ctx.lineTo(x, horizonY + elevated);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+
+      const groundGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+      groundGrad.addColorStop(0, `rgb(${groundRGB[0]}, ${groundRGB[1]}, ${groundRGB[2]})`);
+      groundGrad.addColorStop(1, `rgb(${Math.round(groundRGB[0]*0.45)}, ${Math.round(groundRGB[1]*0.45)}, ${Math.round(groundRGB[2]*0.45)})`);
+      ctx.fillStyle = groundGrad;
+      ctx.fill();
+
+      if (state.t < 0.0 || state.r > 20.0) {
+        const lavaAlpha = state.t < 0.0 ? 0.4 : 0.6 + 0.2 * Math.sin(now * 0.004);
+        ctx.strokeStyle = `rgba(255, 90, 10, ${lavaAlpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 35) {
+          const ly = horizonY + 20 + Math.sin(x * 0.03 + now * 0.002) * 8;
+          if (x === 0) ctx.moveTo(x, ly);
+          else ctx.lineTo(x, ly);
+        }
+        ctx.stroke();
+      }
+
+      if (state.t >= 0.0 && state.t < 5.2) {
+        ctx.fillStyle = 'rgba(30, 105, 175, 0.55)';
+        ctx.fillRect(0, horizonY + 32, w, h - (horizonY + 32));
+      }
+    }
+
+    function drawHRDiagram(ctx, w, h, currentState) {
+      ctx.fillStyle = '#080c18';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, (h / 4) * i);
+        ctx.lineTo(w, (h / 4) * i);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo((w / 4) * i, 0);
+        ctx.lineTo((w / 4) * i, h);
+        ctx.stroke();
+      }
+
+      function coords(temp, lum) {
+        const minLogT = 3.4;
+        const maxLogT = 4.65;
+        const logT = Math.log10(Math.max(2500, Math.min(45000, temp)));
+        const x = (1 - (logT - minLogT) / (maxLogT - minLogT)) * (w - 24) + 12;
+
+        const minLogL = -3.5;
+        const maxLogL = 4.2;
+        const logL = Math.log10(Math.max(0.0003, Math.min(15000, lum)));
+        const y = (1 - (logL - minLogL) / (maxLogL - minLogL)) * (h - 24) + 12;
+
+        return { x, y };
+      }
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < EVOLUTION_STAGES.length; i++) {
+        const p = coords(EVOLUTION_STAGES[i].temp, EVOLUTION_STAGES[i].l);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+
+      const curPos = coords(currentState.temp, currentState.l);
+      const starColors = getStarColor(currentState.temp);
+
+      ctx.fillStyle = starColors.outer;
+      ctx.beginPath();
+      ctx.arc(curPos.x, curPos.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = starColors.core;
+      ctx.beginPath();
+      ctx.arc(curPos.x, curPos.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '8.5px sans-serif';
+      ctx.fillText('Светимость L ↑', 6, 11);
+      ctx.fillText('← T (Горячее)', w - 68, h - 4);
+    }
+
+    function updateUI(state) {
+      valAge.innerText = state.t < 0 ? state.t.toFixed(3) : state.t.toFixed(2);
+      valRadius.innerText = state.r < 0.1 ? state.r.toFixed(3) : state.r >= 10 ? state.r.toFixed(1) : state.r.toFixed(2);
+      valLum.innerText = state.l < 0.01 ? state.l.toFixed(4) : state.l >= 100 ? Math.round(state.l) : state.l.toFixed(2);
+      valTemp.innerText = Math.round(state.temp);
+      spectralBadge.innerText = state.spec;
+      phaseDesc.innerHTML = `<strong>${state.name}</strong><br>${state.desc}`;
+      coreExplanation.innerHTML = `<strong>Внутреннее состояние:</strong> ${state.coreState}`;
+      timeSlider.value = state.t;
+
+      presetBtns.forEach(b => {
+        const bt = parseFloat(b.dataset.time);
+        if (Math.abs(bt - state.t) < 0.18) {
+          b.classList.add('active-p');
+        } else {
+          b.classList.remove('active-p');
+        }
+      });
+    }
+
+    function render(now) {
+      const delta = (now - lastAnimTime) / 1000;
+      lastAnimTime = now;
+
+      if (isPlaying) {
+        currentAge += playSpeed * delta * 3.8;
+        if (currentAge > 13.0) {
+          currentAge = 13.0;
+          isPlaying = false;
+          playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        }
+      }
+
+      const state = getInterpolatedState(currentAge);
+      updateUI(state);
+      updateAudio(state);
+
+      const mRect = mainCanvas.parentElement.getBoundingClientRect();
+      const hRect = hrCanvas.parentElement.getBoundingClientRect();
+
+      if (currentView === 'space') {
+        drawSpaceView(mCtx, mRect.width, mRect.height, state, now);
+      } else {
+        drawEarthView(mCtx, mRect.width, mRect.height, state, now);
+      }
+
+      drawHRDiagram(hCtx, hRect.width, hRect.height, state);
+
+      requestAnimationFrame(render);
+    }
+
+    timeSlider.addEventListener('input', (e) => {
+      currentAge = parseFloat(e.target.value);
+    });
+
+    playBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        if (currentAge >= 13.0) currentAge = -0.05;
+        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+      } else {
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      }
+    });
+
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentAge = parseFloat(btn.dataset.time);
+      });
+    });
+
+    viewSpaceBtn.addEventListener('click', () => {
+      currentView = 'space';
+      viewSpaceBtn.classList.add('active');
+      viewEarthBtn.classList.remove('active');
+      cameraHudText.innerText = 'Космос • Орбитальная плоскость';
+      camHint.style.display = 'block';
+    });
+
+    viewEarthBtn.addEventListener('click', () => {
+      currentView = 'earth';
+      viewEarthBtn.classList.add('active');
+      viewSpaceBtn.classList.remove('active');
+      cameraHudText.innerText = 'Поверхность Земли • Горизонт';
+      camHint.style.display = 'none';
+    });
+
+    toggleCutawayBtn.addEventListener('click', () => {
+      isCutaway = !isCutaway;
+      if (isCutaway) {
+        toggleCutawayBtn.classList.add('active');
+        toggleCutawayBtn.innerText = 'Разрез недр: Вкл';
+        coreHudText.style.display = 'inline-flex';
+      } else {
+        toggleCutawayBtn.classList.remove('active');
+        toggleCutawayBtn.innerText = 'Разрез недр: Выкл';
+        coreHudText.style.display = 'none';
+      }
+    });
+
+    soundBtn.addEventListener('click', toggleAudio);
+
+    resetCamBtn.addEventListener('click', () => {
+      camX = 0;
+      camY = 0;
+      camZoom = 1.0;
+    });
+
+    mainCanvas.addEventListener('wheel', (e) => {
+      if (currentView !== 'space') return;
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      camZoom = Math.max(0.15, Math.min(25.0, camZoom * zoomFactor));
+    }, { passive: false });
+
+    mainCanvas.addEventListener('mousedown', (e) => {
+      if (currentView !== 'space') return;
+      isDragging = true;
+      dragStartX = e.clientX - camX;
+      dragStartY = e.clientY - camY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging || currentView !== 'space') return;
+      camX = e.clientX - dragStartX;
+      camY = e.clientY - dragStartY;
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    mainCanvas.addEventListener('touchstart', (e) => {
+      if (currentView !== 'space') return;
+      if (e.touches.length === 1) {
+        isDragging = true;
+        dragStartX = e.touches[0].clientX - camX;
+        dragStartY = e.touches[0].clientY - camY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, { passive: true });
+
+    mainCanvas.addEventListener('touchmove', (e) => {
+      if (currentView !== 'space') return;
+      if (e.touches.length === 1 && isDragging) {
+        camX = e.touches[0].clientX - dragStartX;
+        camY = e.touches[0].clientY - dragStartY;
+      } else if (e.touches.length === 2 && initialPinchDist) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = dist / initialPinchDist;
+        camZoom = Math.max(0.15, Math.min(25.0, camZoom * factor));
+        initialPinchDist = dist;
+      }
+    }, { passive: true });
+
+    mainCanvas.addEventListener('touchend', () => {
+      isDragging = false;
+      initialPinchDist = null;
+    });
+
+    resizeCanvases();
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
