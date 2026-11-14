@@ -160,7 +160,11 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   const under = diffuseUnderClouds(Fe, optics, hs);
   const ambient = under ? scale(under, 1.2) : add(scale(zen, 1.4), scale(hor, 0.6));
   const groundLight = add(scale(direct, Math.max(0, Math.sin(hs))), ambient);
-  const groundLum = luminance(groundLight) * 0.3;
+  // 5.3.2: экспозиция — по самой светлой поверхности в кадре, а не по «среднему грунту» с альбедо 0.3:
+  // иначе снег и лёд (0.85) пересвечены почти в 3 раза, а вместе с ними и блик в глазу (в вакууме — белый блин)
+  const snowy = clamp01(Math.max(surface.ice >= 1 ? 0.8 : 0, surface.snow * 0.5, surface.groundSnow || 0, surface.lakeIce ? 0.6 : 0));
+  const brightAlb = Math.max(0.3, luminance(mix(body.rock, SNOW, snowy)));
+  const groundLum = luminance(groundLight) * brightAlb;
   // Полярное сияние: нужна магнитосфера, атмосфера и ночь (или удар выброса корональной массы). Считаем заранее —
   // глаз адаптируется и к нему: сильное сияние — самое яркое в ночном небе
   const aur = auroraState(planet, state, exo, climate, atmoNow, hs, now);
