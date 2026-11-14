@@ -12,7 +12,7 @@ precision highp float;
 varying vec2 vUv;
 uniform sampler2D uColor, uAux, uClouds;
 uniform float uCloudCover, uSpin, uCloudSpin, uTilt, uAmb, uLightsK, uLava, uHasClouds, uScale, uAtmo, uHalo, uPx, uTime;
-uniform vec3 uL, uSun, uCloudRgb, uAtmoRgb;
+uniform vec3 uL, uSun, uCloudRgb, uAtmoRgb, uThermal;
 uniform vec4 uShadow;
 ${GLSL_NOISE}
 void main() {
@@ -87,6 +87,12 @@ void main() {
     float e = lights * nightK;
     c += uLava > 0.5 ? e * vec3(1.0, 0.35, 0.05) : e * uLightsK * vec3(1.0, 0.78, 0.4);
   }
+  // 5.3: тепловое свечение раскалённой поверхности (physics/glow.js) — в линейной яркости относительно отражённого
+  // света звезды; облака его гасят. На дневной стороне обычно незаметно, на ночной — тускло-красный жар
+  if (uThermal.r + uThermal.g + uThermal.b > 0.0) {
+    vec3 th = uThermal * (1.0 - 0.8 * cl) * (ocean > 0.5 ? 0.0 : 1.0);
+    c = pow(pow(max(c, 0.0), vec3(2.2)) + th, vec3(1.0 / 2.2));
+  }
   // атмосфера над диском: к краю путь луча длиннее — свет рассеяния, на ночной стороне гаснет
   if (uAtmo > 0.0) {
     float rim = pow(1.0 - z, 2.2) * uAtmo * clamp(ndl * 1.5 + 0.35, 0.0, 1.0);
@@ -139,7 +145,7 @@ export function drawSphereGL(ctx, cx, cy, R, tex, clouds, o) {
     // а между обновлениями берём готовую картинку из кэша — без копирования из WebGL
     const L1 = o.light || L0, sh1 = o.shadow;
     const key = N + '|' + L1.map(v => v.toFixed(2)).join(',') + '|' + (sh1 ? [sh1.x, sh1.y, sh1.z, sh1.r].map(v => v.toFixed(3)).join(',') : '-') +
-      '|' + (o.nightLights || 0).toFixed(2) + '|' + (o.cloudCover || 0).toFixed(2) + '|' + atmo.toFixed(2) + '|' + (o.starRgb || []).join(',');
+      '|' + (o.thermal || [0, 0, 0]).map(v => v.toExponential(1)).join(',') + '|' + (o.nightLights || 0).toFixed(2) + '|' + (o.cloudCover || 0).toFixed(2) + '|' + atmo.toFixed(2) + '|' + (o.starRgb || []).join(',');
     let byN = layers.get(tex);
     if (!byN) { byN = new Map(); layers.set(tex, byN); }
     let lc = byN.get(N);
@@ -165,6 +171,8 @@ export function drawSphereGL(ctx, cx, cy, R, tex, clouds, o) {
     gl.uniform3f(uni.uCloudRgb, cr[0] / 255, cr[1] / 255, cr[2] / 255);
     const ar = o.atmoRgb || [147, 197, 253];
     gl.uniform3f(uni.uAtmoRgb, ar[0] / 255, ar[1] / 255, ar[2] / 255);
+    const th = o.thermal || [0, 0, 0];
+    gl.uniform3f(uni.uThermal, th[0], th[1], th[2]);
     gl.uniform1f(uni.uSpin, o.spin % 1);
     gl.uniform1f(uni.uCloudSpin, (o.cloudSpin || 0) % 1);
     gl.uniform1f(uni.uTilt, (o.tilt || 0) * Math.PI / 180);

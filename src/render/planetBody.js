@@ -6,6 +6,8 @@ import { OBLIQUITY, rotationHours } from '../physics/rotation.js';
 import { getCustomExo } from '../model/exoplanets.js';
 import { buildCloudTexture, buildPlanetTexture } from './planetTextures.js';
 import { drawSphere } from './sphere.js';
+import { thermalGlowRatio } from '../physics/glow.js';
+import { getPlanetDistanceAU } from '../physics/orbits.js';
 
 let cur = { key: '', tex: null, clouds: null, built: 0 };
 
@@ -37,10 +39,17 @@ export function drawPlanetBody(ctx, cx, cy, R, planet, look, state, now, shadow,
   const spin = (now / 40000) * (24 / hours) * Math.sign(rotationHours(planet, state.t) || 1);
   const sr = blackbodyRGB(state.temp);
   const lightsK = civilization(planet, state.t) ? Math.max(0, 1 - Math.abs(state.t - 4.6) / 0.1) : 0;
+  // 5.3: тепловое свечение — линейная яркость относительно отражённого света (альбедо 1), цвет — Планк при T грунта
+  let thermal = null;
+  const k = look.T > 700 ? thermalGlowRatio(look.T, state.temp, state.r, getPlanetDistanceAU(planet, state)) : 0;
+  if (k > 1e-4) {
+    const bb = blackbodyRGB(look.T), lum = 0.2126 * bb[0] + 0.7152 * bb[1] + 0.0722 * bb[2];
+    thermal = bb.map(v => Math.min(4, v * k / lum));
+  }
   const gl = drawSphere(ctx, cx, cy, R, cur.tex, cur.clouds, {
     tilt: exo ? 15 : (OBLIQUITY[planet] ?? 0) % 180 > 90 ? 180 - (OBLIQUITY[planet] % 180) : (OBLIQUITY[planet] ?? 0),
     spin, cloudSpin: spin * 1.08 + now / 900000,
-    starRgb: sr, cloudRgb: look.cloudRgb, nightLights: lightsK, shadow, light,
+    starRgb: sr, cloudRgb: look.cloudRgb, nightLights: lightsK, shadow, light, thermal,
     ambient: look.glow > 0.05 ? 0.05 : 0.025,
     maxRes: S.lowQuality ? 220 : 340,
     atmoRgb: look.atmoRgb, atmoDensity: look.atmoDensity, time: now, cloudCover: look.cloudCover

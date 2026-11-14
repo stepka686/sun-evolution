@@ -10,6 +10,10 @@
 //   рассеянным светом выше лежащих слоёв, поэтому сумерки светятся и после захода звезды за горизонт.
 // • Озон — тонкий слой на ~25 км: на длинном пути сумеречного луча он съедает оранжевый — «синий час» (Hulburt 1953).
 // • Свечение верхней атмосферы (кислород 557.7 нм, ~90 км) — ярче к горизонту из-за длинного пути (ван Рейн).
+// • 5.3: навигационные сумерки. Когда вся толща над наблюдателем уже в тени, её подсвечивает воздух со стороны звезды,
+//   ещё освещённый: добавка многократного рассеяния от точки, сдвинутой к звезде на дальность горизонта с высоты ~5
+//   шкал высот (у Земли ~700 км), с весом 1%. Без неё небо чернело уже при звезде на −9°; теперь яркость зенита
+//   при −6…−12° совпадает с табличной освещённостью сумерек (Bond & Henderson 1963) в пределах ×1.6.
 import { LAMBDA_NM } from './optics.js';
 
 export const SKY_LAMBDA = [410, 450, 490, 530, 570, 610, 650, 690];
@@ -51,6 +55,8 @@ const interp3 = (rgb, l) => {
  * Параметры неба для планеты: оптика (atmosphereOptics), шкала высот газа, звезда (T★, её RGB-поток F).
  * Возвращает всё в километрах и в 8 спектральных каналах.
  */
+export const TWI_HEIGHT = 4.8, TWI_WEIGHT = 0.01;
+
 export function buildSkyParams(planet, optics, opts) {
   const { starT, F, Hgas = 8, cityGlow = 0, airglow = 0 } = opts;
   const R = PLANET_R[planet] || 6371;
@@ -68,7 +74,9 @@ export function buildSkyParams(planet, optics, opts) {
   const B = SKY_LAMBDA.map(l => planck(l, starT));
   const yB = lum(spectrumToRGB(B)), yF = lum(F);
   const Fs = B.map(b => b * yF / Math.max(1e-30, yB));
-  return { R, H: Hgas, Ha, tauR, tauA, wA, gA, oz, F: Fs, top: Math.max(10 * Hgas, 6 * Ha), cityGlow, airglow };
+  // угол сдвига к звезде для подсветки сумерек: дальность горизонта с высоты 5H, в радианах дуги планеты
+  const twiArc = Math.sqrt(2 * TWI_HEIGHT * Hgas / R);
+  return { R, H: Hgas, Ha, tauR, tauA, wA, gA, oz, F: Fs, top: Math.max(10 * Hgas, 6 * Ha), cityGlow, airglow, twiArc };
 }
 
 /**
@@ -145,11 +153,14 @@ export function skySpectral(P, hView, hSun, cosG, N = 16) {
     // многократное рассеяние: свет, рассеянный выше лежащими (ещё освещёнными) слоями — сумеречное свечение
     // освещающий свет приходит отчасти сверху, где луч звезды ещё не покраснел: смесь пропускания здесь и на 2 шкалы выше
     const up = 2 * P.H;
-    const TsUp = sunTransmittance(P, r + up, Math.max(-1, Math.min(1, mu)), new Array(8));
+    const muC = Math.max(-1, Math.min(1, mu));
+    const TsUp = sunTransmittance(P, r + up, muC, new Array(8));
+    // воздух со стороны звезды (на дуге twiArc ближе к ней, на шкалу высот выше) — ещё освещён в навигационные сумерки
+    const TsFar = sunTransmittance(P, r + P.H, Math.cos(Math.max(0, Math.acos(muC) - (P.twiArc || 0))), new Array(8));
     for (let i = 0; i < 8; i++) {
       const bR = P.tauR[i] * dR, bA = P.tauA[i] * dA;
       const tauTot = P.tauR[i] + P.tauA[i];
-      const ms = 0.3 * Math.min(1, tauTot) * (P.tauR[i] + P.tauA[i] * P.wA[i]) / Math.max(1e-6, tauTot) * (0.45 * Ts[i] + 0.55 * TsUp[i]);
+      const ms = 0.3 * Math.min(1, tauTot) * (P.tauR[i] + P.tauA[i] * P.wA[i]) / Math.max(1e-6, tauTot) * ((0.45 * Ts[i] + 0.55 * TsUp[i]) * (1 - TWI_WEIGHT) + TWI_WEIGHT * TsFar[i]);
       const ss = Ts[i] * (bR * pR + bA * P.wA[i] * pA[i]);
       L[i] += P.F[i] * Tv[i] * (ss + (bR + bA * P.wA[i]) * ms) * dt;
       Tv[i] *= Math.exp(-(bR + bA) * dt);
