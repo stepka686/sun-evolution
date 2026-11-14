@@ -37,14 +37,16 @@ node tools/check/compare-shots.cjs 5.2.1,5.2.2
 - `src/ui/` — панели, цикл (`loop.js`), адаптивный DPR (`perf.js`), телескоп, HUD.
 - `src/audio/` — звук звезды (p-моды).
 - `tools/mist`, `tools/sky`, … — Python-генераторы данных.
-- `releases/` — собранные HTML всех версий (для сравнения и скачивания). `changelog/` — логи версий.
+- `releases/` — собранные HTML всех версий (для сравнения и скачивания). `changelog/` — логи версий. `docs/` — техническая документация, история версий, картинки README. Сайт на GitHub Pages собирается CI из `main`.
 
 ## Порядок выпуска версии
 1. Код + тесты на новую физику (сверка с литературой/эталоном, а не «на глаз»).
 2. `npm test` → 0 fail; `regress.cjs` → `errors: none`; `mobile.cjs`/`ui.cjs` — без наложений; глянуть снимки.
-3. Поднять версию в `package.json`; заголовок в `src/index.html` и метка в `src/ui/panels.js` — для минорных версий; раздел в README.
+3. Поднять версию в `package.json`; заголовок в `src/index.html` и метка в `src/ui/panels.js` — для минорных версий; раздел о версии — в `docs/DEVELOPMENT.md`.
+   README — витрина: при выпуске обновить бейджи (версия, число тестов, размер) и ссылку «Скачать HTML»; если версия меняет внешний вид — переснять картинки (`npm run dev` + `node tools/check/readme-shots.cjs`, гифка — `node tools/check/readme-gif.cjs` по сборке).
 4. `npm run build`, скопировать `dist/*.html` в `releases/`.
-5. Лог `changelog/vX.Y[.Z].txt` — **только когда автор просит** («Сделай лог»). Формат:
+5. История: строка в таблице `docs/HISTORY.md` (лог + сборка) и график `python tools/stats/lines_growth.py`.
+6. Лог `changelog/vX.Y[.Z].txt` — **только когда автор просит** («Сделай лог»). Формат:
    ```
    <Название версии одной строкой>
    Добавлено:
