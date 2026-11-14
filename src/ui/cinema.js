@@ -89,13 +89,21 @@ export function drawCinemaCaption(ctx, w, h) {
   if (!run || !run.caption) return;
   ctx.save();
   const a = Math.max(0, Math.min(1, run.fade));
-  ctx.font = `600 ${Math.max(14, Math.min(22, w / 42))}px sans-serif`;
-  const tw = ctx.measureText(run.caption).width;
+  const fs = Math.max(14, Math.min(22, w / 42));
+  ctx.font = `600 ${fs}px sans-serif`;
+  // 5.3.1: подпись внизу — сверху её закрывала панель времени. Над подписью вида (до ~5 строк, ~95 px снизу);
+  // длинную фразу переносим по словам, чтобы на телефоне не уезжала за край
+  const maxW = w - 40, words = run.caption.split(' '), lines = [];
+  let cur = '';
+  for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = wd; } else cur = t; }
+  if (cur) lines.push(cur);
+  const lh = fs * 1.3, tw = Math.max(...lines.map(l => ctx.measureText(l).width));
+  const boxH = lines.length * lh + 14, boxTop = h - 100 - boxH;
   ctx.fillStyle = `rgba(2, 6, 23, ${(0.6 * a).toFixed(2)})`;
-  ctx.fillRect(w / 2 - tw / 2 - 16, h * 0.08 - 26, tw + 32, 40);
+  ctx.fillRect(w / 2 - tw / 2 - 16, boxTop, tw + 32, boxH);
   ctx.fillStyle = `rgba(248, 250, 252, ${a.toFixed(2)})`;
-  ctx.textAlign = 'center';
-  ctx.fillText(run.caption, w / 2, h * 0.08);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach((l, i) => ctx.fillText(l, w / 2, boxTop + 7 + lh * (i + 0.5)));
   if (recorder) { ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(24, 24, 7, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
 }
