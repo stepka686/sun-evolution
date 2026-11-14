@@ -273,7 +273,9 @@ export function drawSurfaceView(ctx, w, h, state, now) {
     const hsG = Math.max(0.01, hs);
     drawGlare(ctx, sunX, sunYd, sunR, pxPerRad, (th) => {
       const bg = optics.cloud ? [0, 0, 0] : sky(Math.min(1.5, hsG + th * D2R * 0.5), Math.cos(th * D2R));
-      const a = disp(add(bg, scale(direct, Math.PI * cieGlarePSF(th)))), b = disp(bg);
+      // Ореол — свет, рассеянный в самом глазу, а не в небе, поэтому он есть и в вакууме
+      const veil = scale(direct, Math.PI * cieGlarePSF(th));
+      const a = disp(add(bg, veil)), b = disp(bg);
       return a.map((v, i) => Math.max(0, v - b[i]));
     }, [Math.round(hs * 300), Math.round(Math.log(E) * 20), Math.round(lvl * 50), Math.round(sunVisibleFrac * 50), optics.kind].join(','));
     ctx.restore();
@@ -438,7 +440,7 @@ function drawOpticalPhenomena(ctx, w, horizonY, now, planet, surface, optics, cl
   const season = Math.sin(2 * Math.PI * (S.dayOfYear - 109) / 365.25);
   let halo = null;
   if (planet === 'earth' && optics.kind !== 'vacuum' && ((Tloc !== null && Tloc < 2) || climate.climate === 'snowball')) halo = 'ice';
-  else if (planet === 'earth' && Math.sin(now * 0.00004 + 1.3) > 0.55) halo = 'ice';            // перистые облака набегают временами (их рисует шейдер неба)
+  else if (planet === 'earth' && climate.atmo.regime === 'wet' && Math.sin(now * 0.00004 + 1.3) > 0.55) halo = 'ice';   // перистые — только во влажной атмосфере (в вакууме гало нет)            // перистые облака набегают временами (их рисует шейдер неба)
   else if (planet === 'mars' && climate.atmo.pBar < 0.1 && season < -0.3) halo = 'co2ice';
   if (halo) {
     const a = Math.min(1, directFrac * 1.4) * (halo === 'co2ice' ? 0.7 : 1);
@@ -699,9 +701,15 @@ function drawGlare(ctx, x, y, sunR, pxPerRad, incAt, sceneKey) {
     const grad = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2);
     const r0 = Math.min(0.99, th0 / thMax);
     grad.addColorStop(0, rgb(...incAt(th0).map(v => Math.min(255, v))));
-    for (let i = 0; i <= 10; i++) {
-      const th = th0 * Math.pow(thMax / th0, i / 10);
-      const col = i === 10 ? [0, 0, 0] : incAt(th);
+    // опорные точки: 8 по логарифму угла у ядра + 16 равномерно по радиусу (иначе линейные рампы дают «диск с ободком»)
+    const ths = [];
+    for (let i = 0; i < 8; i++) ths.push(th0 * Math.pow(Math.max(1.0001, thMax * 0.1 / th0), i / 8));
+    for (let i = 1; i <= 16; i++) ths.push(thMax * i / 16);
+    for (let i = 0; i < ths.length; i++) {
+      const th = ths[i];
+      // край кадра ореола (если упёрлись в 25°) — плавно в ноль, без кольца
+      const edge = 1 - Math.pow(th / thMax, 4);
+      const col = i === ths.length - 1 ? [0, 0, 0] : incAt(th).map(v => v * edge);
       grad.addColorStop(Math.max(r0, Math.min(1, th / thMax)), rgb(Math.min(255, col[0]), Math.min(255, col[1]), Math.min(255, col[2])));
     }
     g.fillStyle = grad; g.fillRect(0, 0, N, N);
