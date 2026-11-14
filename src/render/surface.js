@@ -8,9 +8,14 @@ import { getCustomExo } from '../model/exoplanets.js';
 import { isPlanetHitByCME, fateText, getPlanetDistanceAU, isPlanetTidallyLocked } from '../physics/orbits.js';
 import { calculateBiosphere, calculatePlanetAtmosphere } from '../physics/climate.js';
 import { LAMBDA_NM, adaptationLevel, angularRadius, blackbodyRGB, diffuseUnderClouds, directLight, luminance, skyRadiance, surfaceOpticsFor, toDisplay } from '../physics/optics.js';
-import { drawSkyGL } from '../gl/skyGL.js';
+import { drawSkyGL, drawUpperGL } from '../gl/skyGL.js';
+import { LINE_SCALE, airglowBin, auroraColumns, auroraSpectrum, nlcStrength } from '../physics/upperAtmo.js';
+import { cieGlarePSF } from '../physics/glare.js';
+import { drawCorona } from './corona.js';
+import { getAsteroseismicData } from '../model/activity.js';
+import { civilization } from './planetBody.js';
 import { planetLook } from './planetLook.js';
-import { buildSkyParams, skySpectral } from '../physics/skyModel.js';
+import { buildSkyParams, skySpectral, spectrumToRGB } from '../physics/skyModel.js';
 import { meanMolar } from '../physics/atmoProfile.js';
 
 const adapt = { E: 0, lvl: 0, t: 0 };   // состояние адаптации глаза между кадрами
@@ -145,7 +150,7 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   const Hgas = 8.314 * Math.max(40, climate.T * 0.85) / (meanMolar(atmoNow.mix) / 1000 * 9.81 * surfaceGravity(planet)) / 1000;
   const look = planetLook(planet, state);
   const skyP = optics.kind === 'vacuum' ? null : buildSkyParams(planet, optics, { starT: state.temp, F: Fe, Hgas: Math.max(2, Math.min(80, Hgas)),
-    airglow: optics.ozone ? 3e-9 : 0, cityGlow: planet === 'earth' && (look.nightLights || 0) > 0.05 ? 2.5e-6 * look.nightLights : 0 });
+    airglow: optics.ozone ? airglowBin() : 0, cityGlow: planet === 'earth' && (look.nightLights || 0) > 0.05 ? 2.5e-6 * look.nightLights : 0 });
   const skyAt = (hh, cosG) => skyP && !optics.cloud ? skySpectral(skyP, hh, hs, cosG, 10) : skyRadiance(Fe, optics, hh, hs, cosG);
   const sky = skyAt;
   const zen = sky(Math.PI / 2, Math.sin(hs));
@@ -155,7 +160,14 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   const ambient = under ? scale(under, 1.2) : add(scale(zen, 1.4), scale(hor, 0.6));
   const groundLight = add(scale(direct, Math.max(0, Math.sin(hs))), ambient);
   const groundLum = luminance(groundLight) * 0.3;
-  const peak = Math.max(luminance(zen), luminance(hor), groundLum, 1e-12);
+  // Полярное сияние: нужна магнитосфера, атмосфера и ночь (или удар выброса корональной массы). Считаем заранее —
+  // глаз адаптируется и к нему: сильное сияние — самое яркое в ночном небе
+  const aur = auroraState(planet, state, exo, climate, atmoNow, hs, now);
+  const nlc = skyP && optics.ozone && planet === 'earth' && climate.atmo.regime === 'wet' && hs < -0.08 && hs > -0.32
+    ? nlcStrength(S.dayOfYear, { civilization: civilization(planet, state.t) }) : 0;
+  // горизонт под звездой: в сумерках это самая яркая часть неба (сумеречная дуга) — глаз адаптируется к ней
+  const horSun = hs < 0.1 && skyP && !optics.cloud ? luminance(sky(0.03, Math.cos(0.03 - hs))) * 0.6 : 0;
+  const peak = Math.max(luminance(zen), luminance(hor), horSun, groundLum, aur.on ? aur.lum : 0, 1e-12);
   // экспозиция растёт до уровня ~полнолуния; темнее — кадр гаснет через уровень адаптации lvl
   const E0 = 1.6 / Math.max(peak, 1e-6);
   const lvl0 = adaptationLevel(peak / REF_LUM);
@@ -182,11 +194,16 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   // облака: кучевые — по погоде (ливни волнами), перистые — временами набегают (тогда же и гало)
   const wxNow = surface.weather;
   const showersK = Math.sin(now * 0.00015);
-  const cumulus = (wxNow === 'rain' || wxNow === 'snow') ? 0.3 + 0.5 * clamp01((showersK + 0.3) / 1.2) : wxNow === 'blizzard' ? 0.95 : 0;
+  const cumulusWx = (wxNow === 'rain' || wxNow === 'snow') ? 0.3 + 0.5 * clamp01((showersK + 0.3) / 1.2) : wxNow === 'blizzard' ? 0.95 : 0;
+  // 5.3: кучевые хорошей погоды — разорванные «барашки» набегают и тают у влажных тёплых миров; сквозь просветы
+  // между ними идут сумеречные лучи (тени облаков в освещённом воздухе)
+  const fairCu = climate.atmo.regime === 'wet' && climate.climate === 'warm' && !optics.cloud ? 0.34 * clamp01((Math.sin(now * 0.00003 + 2.1) + 0.2) * 1.4) : 0;
+  const cumulus = Math.max(cumulusWx, fairCu);
   const cirrus = planet === 'earth' && climate.atmo.regime === 'wet' ? clamp01((Math.sin(now * 0.00004 + 1.3) - 0.4) * 4) : 0;
   const ambientSky = add(scale(zen, 1.2), scale(hor, 0.4));
   const skyGL = drawSkyGL(ctx, { w, h, horizonY, vScale, pxPerRad, azView, hs, sunAz: frame.sunAz, P: skyP, overcast: !!optics.cloud, cloudT,
-    E, sat: skyP ? (optics.kind === 'air' || optics.kind === 'ice' ? 1.15 : 1.0) : SAT, lvl, night: nightVis, cumulus, cirrus, time: now, ambient: ambientSky, lowQuality: S.lowQuality });
+    E, sat: skyP ? (optics.kind === 'air' || optics.kind === 'ice' ? 1.15 : 1.0) : SAT, lvl, night: nightVis, cumulus, cirrus, time: now, ambient: ambientSky, lowQuality: S.lowQuality,
+    rays: !optics.cloud && cumulus > 0.05 && cumulus < 0.9 && hs > -0.1 });
   const topElev = horizonY / vScale;
   const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
   for (let k = 0; k <= 7; k++) {
@@ -218,15 +235,16 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   // 7. Планеты на небе: угловое расстояние от звезды и блеск (звёздная величина) по геометрии орбит
   drawSkyPlanets(ctx, w, h, state, now, planet, pDistAU, horizonY, skyBright, optics, frame, projEq);
 
-  // 8. Полярные сияния: нужна магнитосфера, атмосфера и ночь (или удар выброса корональной массы)
-  const cme = isPlanetHitByCME(planet, state);
-  const hasField = (planet === 'earth' && state.t < 11.5) || (planet === 'mars' && state.t < 0.6) || (exo && exo.type !== 'chthonian') || planet === 'uranus' || planet === 'neptune';
-  // на широте 50° полярные сияния бывают только в магнитные бури — они приходят редко и длятся недолго
-  const storm = Math.sin(now * 0.000021 + 0.7);
-  if (hasField && climate.atmo.pBar > 0.05 && (cme || (S.isAurorasOn && skyBright < 0.12 && storm > 0.8))) {
-    const o2 = planet === 'earth' ? calculateBiosphere(state.t).o2 : 0;
-    // на средних широтах сияния слабые; удар выброса корональной массы зажигает их на полнеба
-    drawAurora(ctx, w, horizonY, now, o2 > 1, cme ? 1 : 0.22 * clamp01((storm - 0.8) * 8) * clamp01(1 - skyBright * 8));
+  // 8. Верхняя атмосфера (5.3): полярное сияние и серебристые облака — на GPU, излучение линий на своих высотах
+  let upperGL = false;
+  if (aur.on || nlc > 0) {
+    // ПРЕУВЕЛИЧЕНИЕ (честно): сияние в 30 кР и серебристые облака по фотометрии тусклее неба при полной Луне — глаз видит
+    // их слабыми и почти бесцветными. Слой верхней атмосферы показан как на фото с выдержкой в пару секунд:
+    // экспозиция доходит до 10⁻⁷ (а не 10⁻⁶), уровень кадра — не ниже 0.55, сумеречное обесцвечивание — вдвое слабее
+    const Eup = Math.max(E, 1.6 / Math.max(peak, 1e-7));
+    upperGL = drawUpperGL(ctx, { w, h, horizonY, vScale, pxPerRad, azView, hs, sunAz: frame.sunAz, P: skyP, E: Eup, sat: 1, lvl: Math.max(lvl, 0.55), night: nightVis * 0.5, time: now, lowQuality: S.lowQuality,
+      aurora: aur.on ? ['O557', 'O630', 'N428', 'N2red'].map(k => aur.cols[k] * LINE_SCALE[k]) : [0, 0, 0, 0], auroraN: aur.cme ? 60 : 420, nlc });
+    if (!upperGL && aur.on) drawAurora(ctx, w, horizonY, now, aur.oxygen, aur.cme ? 1 : 0.22 * aur.fade);
   }
 
   // 9. Вторая звезда двойной системы
@@ -248,11 +266,16 @@ export function drawSurfaceView(ctx, w, h, state, now) {
     const core = rgb(dc[0], dc[1], dc[2]);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    // ореол «в глазу» — компактный: несколько диаметров диска, а не полнеба (сравнивали с фото Солнца)
-    const bloomR = sunR * 2.2 + 8 + 26 * clamp01(luminance(direct) * E * 0.5) * (optics.aer ? 1.3 : 1);
-    const bloom = ctx.createRadialGradient(sunX, sunYd, sunR * 0.8, sunX, sunYd, bloomR);
-    bloom.addColorStop(0, rgba(dc[0], dc[1], dc[2], 0.55 * sunVisibleFrac)); bloom.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(sunX, sunYd, bloomR, 0, Math.PI * 2); ctx.fill();
+    // 5.3: ореол «в глазу» — функция рассеяния точки CIE 2002 (physics/glare.js): яркость блика на угле θ
+    // L = PSF(θ)·E, E — освещённость от диска. Единицы неба — π·L/E (зенит дневного неба: модель 0.16 при табличных
+    // ~0.05 ср⁻¹ × π), поэтому блик = π·PSF·прямой свет. Радиус — пока блик заметен на экране (≥ 1/255)
+    // Блик складывается с небом в линейной яркости, на экран идёт только прибавка: где небо и так светлое, его не видно
+    const hsG = Math.max(0.01, hs);
+    drawGlare(ctx, sunX, sunYd, sunR, pxPerRad, (th) => {
+      const bg = optics.cloud ? [0, 0, 0] : sky(Math.min(1.5, hsG + th * D2R * 0.5), Math.cos(th * D2R));
+      const a = disp(add(bg, scale(direct, Math.PI * cieGlarePSF(th)))), b = disp(bg);
+      return a.map((v, i) => Math.max(0, v - b[i]));
+    }, [Math.round(hs * 300), Math.round(Math.log(E) * 20), Math.round(lvl * 50), Math.round(sunVisibleFrac * 50), optics.kind].join(','));
     ctx.restore();
     // потемнение к краю заметно, только когда диск большой (на крошечном диске оно рисовало бы ободок)
     const ry = Math.min(sunR, sunRy);
@@ -285,7 +308,7 @@ export function drawSurfaceView(ctx, w, h, state, now) {
     }
   }
   // Луна поверх звезды (затмение), корона при полном затмении
-  if (moon) drawMoon(ctx, moon, disp, F, optics, sunX, sunY, sunR, horizonY);
+  if (moon) drawMoon(ctx, moon, disp, F, optics, sunX, sunY, sunR, horizonY, sunAngR, directLight(F, optics, Math.max(0, hs)), state);
 
   // 11. Крупные тела в небе спутников
   drawHostPlanet(ctx, w, h, planet, horizonY, lvl, optics);
@@ -464,7 +487,7 @@ function moonFor(planet, state, now, pDistAU, sunAngR, pxPerRad, sunX, sunY, fra
   return { x, y, r, psi, cover: Math.min(0.999, cover), total: cover > 0.995 && r >= rs, angR, kind: eclipseKind(state.t, state.r, pDistAU), shadow };
 }
 
-function drawMoon(ctx, m, disp, F, optics, sunX, sunY, sunR, horizonY) {
+function drawMoon(ctx, m, disp, F, optics, sunX, sunY, sunR, horizonY, sunAngR, Fdir, state) {
   if (m.y - m.r > horizonY) return;
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, ctx.canvas.width, horizonY); ctx.clip();
@@ -507,7 +530,13 @@ function drawMoon(ctx, m, disp, F, optics, sunX, sunY, sunR, horizonY) {
     ctx.restore();
   }
   // Полное затмение: солнечная корона и протуберанцы
-  if (m.total) {
+  if (m.total && sunAngR > 0) {
+    // 5.3: корона по Баумбаху, форма — по фазе цикла активности; яркость диска в единицах неба (π·L/E) — π/Ω
+    const omega = Math.PI * sunAngR * sunAngR;
+    const act = getAsteroseismicData(state).activityLevel ?? 0.5;
+    const e0 = disp(scale(Fdir, Math.PI / omega * 1e-6));
+    drawCorona(ctx, sunX, sunY, sunR, act, (k) => disp(scale(Fdir, Math.PI / omega * k)), e0.map(v => Math.round(v / 8)).join(','));
+  } else if (m.total) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(sunX, sunY, sunR, sunX, sunY, sunR * 4);
     g.addColorStop(0, 'rgba(240,245,255,0.9)'); g.addColorStop(0.3, 'rgba(200,215,255,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -630,6 +659,61 @@ function drawNightSky(ctx, w, horizonY, now, projEq, frame, optics, starAlpha, s
 }
 
 // ---------- сияния, компаньон, хозяин-гигант, метеоры ----------
+// ---------- полярное сияние ----------
+function auroraState(planet, state, exo, climate, atmoNow, hs, now) {
+  const cme = isPlanetHitByCME(planet, state);
+  const hasField = (planet === 'earth' && state.t < 11.5) || (planet === 'mars' && state.t < 0.6) || (exo && exo.type !== 'chthonian') || planet === 'uranus' || planet === 'neptune';
+  // на широте 50° полярные сияния бывают только в магнитные бури — они приходят редко и длятся недолго;
+  // видны в темноте — когда звезда ниже ~10° под горизонтом
+  const storm = Math.sin(now * 0.000021 + 0.7);
+  const dark = clamp01((-hs - 0.17) / 0.1);
+  const on = hasField && climate.atmo.pBar > 0.05 && (cme || (S.isAurorasOn && dark > 0 && storm > 0.8));
+  if (!on) return { on: false };
+  const o2 = planet === 'earth' ? calculateBiosphere(state.t).o2 : 0;
+  const mixA = atmoNow.mix || {};
+  // атомарный кислород верхней атмосферы — из O₂ и из CO₂ (зелёная линия есть и на Марсе)
+  const oxygen = o2 > 1 || (mixA.O2 || 0) > 0.01 || (mixA.CO2 || 0) > 0.05;
+  // буря на средних широтах — ~30 кР у северного горизонта (как в мае 2024 г.); удар выброса — ~100 кР над головой
+  const fade = cme ? 1 : clamp01((storm - 0.8) * 8) * dark;
+  const cols0 = auroraColumns(cme ? 1 : 0.27, { oxygen, storm: true });
+  const cols = Object.fromEntries(Object.entries(cols0).map(([k, v]) => [k, v * fade]));
+  // яркость для адаптации глаза: столб × ~3 (наклонный луч сквозь занавес)
+  const lum = luminance(spectrumToRGB(auroraSpectrum(cols))) * 3;
+  return { on: true, cme, oxygen, cols, fade, lum };
+}
+
+// ---------- блик в глазу (CIE 2002) ----------
+const glareCache = { canvas: null, key: '' };
+function drawGlare(ctx, x, y, sunR, pxPerRad, incAt, sceneKey) {
+  const th0 = Math.max(0.1, sunR / pxPerRad * 180 / Math.PI);
+  const key = [Math.round(sunR), Math.round(pxPerRad), sceneKey].join('|');
+  if (key !== glareCache.key) {
+    // радиус: где прибавка блика падает ниже 1/255 экрана (не больше 25°); опорные точки — по логарифму угла
+    let thMax = th0 * 1.5;
+    while (thMax < 25 && Math.max(...incAt(thMax)) > 1) thMax *= 1.3;
+    const R = Math.max(sunR * 1.5, thMax * Math.PI / 180 * pxPerRad);
+    const N = Math.max(8, Math.min(512, Math.ceil(2 * R)));
+    if (!glareCache.canvas) glareCache.canvas = document.createElement('canvas');
+    const c = glareCache.canvas; c.width = c.height = N;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2);
+    const r0 = Math.min(0.99, th0 / thMax);
+    grad.addColorStop(0, rgb(...incAt(th0).map(v => Math.min(255, v))));
+    for (let i = 0; i <= 10; i++) {
+      const th = th0 * Math.pow(thMax / th0, i / 10);
+      const col = i === 10 ? [0, 0, 0] : incAt(th);
+      grad.addColorStop(Math.max(r0, Math.min(1, th / thMax)), rgb(Math.min(255, col[0]), Math.min(255, col[1]), Math.min(255, col[2])));
+    }
+    g.fillStyle = grad; g.fillRect(0, 0, N, N);
+    glareCache.key = key; glareCache.N = N; glareCache.R = R;
+  }
+  const R = glareCache.R;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.drawImage(glareCache.canvas, 0, 0, glareCache.N, glareCache.N, x - R, y - R, 2 * R, 2 * R);
+  ctx.restore();
+}
+
 function drawAurora(ctx, w, horizonY, now, oxygen, strength) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';

@@ -1,4 +1,5 @@
 // Вид «Космос»
+import { drawBlackHoleGL } from '../gl/blackHoleGL.js';
 import { drawAGBShells, drawComets, drawRemnantLabel, drawWDDebrisDisk } from './cosmic.js';
 import { planetDotColor, planetLook } from './planetLook.js';
 import { activeCMEs, getAsteroseismicData, spawnCoronalMassEjection } from '../model/activity.js';
@@ -794,7 +795,11 @@ drawBinarySystem(ctx, state, baseScaleAU, pitchCos, now, S.camZoom, delta);     
         }
         ctx.restore();
 
+        // 5.3: на GPU — трассировка лучей в поле Шварцшильда (тень, линзирование звёзд, изображение диска над тенью);
+        // тень 3√3/2 r_s совпадает с прежним радиусом рисунка bhR
+        const bhGL = drawBlackHoleGL(ctx, 0, 0, bhR / 2.6, Math.acos(Math.max(-1, Math.min(1, pitchCos))), now, S.lowQuality);
         // Аккреционный диск
+        if (!bhGL) {
         ctx.save();
         ctx.scale(1.0, pitchCos);
         ctx.globalCompositeOperation = 'lighter';
@@ -826,6 +831,7 @@ drawBinarySystem(ctx, state, baseScaleAU, pitchCos, now, S.camZoom, delta);     
         ctx.arc(0, 0, bhR, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+        }
       }
 
       // Призрачный контур 1 R☉
