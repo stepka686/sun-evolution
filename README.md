@@ -231,6 +231,10 @@ python tools/climate/ebm.py tools/climate/earth_climate.json plots/   # бифу
 
 ## История версий
 
+![Рост проекта: строк в собранном HTML по версиям](docs/lines_growth.png)
+
+От 988 строк в 1.0 до ~14 800 в 5.3.2. Перерисовать после новой версии: `python tools/stats/lines_growth.py` (нужен matplotlib).
+
 Каждая версия — строка: название из лога, сам лог и собранный HTML. Сборки до 4.0.5 переименованы к общему виду `sun_evolution_vX.Y.Z.html`.
 
 | Версия | Что нового | Лог | Сборка |
