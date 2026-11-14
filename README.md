@@ -231,7 +231,7 @@ python tools/climate/ebm.py tools/climate/earth_climate.json plots/   # бифу
 
 ## История версий
 
-Каждая версия — строка: название из лога, сам лог и собранный HTML (если сохранился; сборки 4.1 нет). Сборки до 4.0.5 переименованы к общему виду `sun_evolution_vX.Y.Z.html`.
+Каждая версия — строка: название из лога, сам лог и собранный HTML. Сборки до 4.0.5 переименованы к общему виду `sun_evolution_vX.Y.Z.html`.
 
 | Версия | Что нового | Лог | Сборка |
 |---|---|---|---|
@@ -294,7 +294,7 @@ python tools/climate/ebm.py tools/climate/earth_climate.json plots/   # бифу
 | 3.8 | Масштабное расширение звёздной физики и оживление планет | [лог](changelog/v3.8.txt) | [3.8.0](releases/sun_evolution_v3.8.0.html) |
 | 3.9 | Подготовка к большому обновлению | [лог](changelog/v3.9.txt) | [3.9.0](releases/sun_evolution_v3.9.0.html) |
 | 4.0–4.0.5 | Юбилейное обновление: Палеоклимат, атмосферы миров и физическая телеметрия СИ(Лог включает изменения для версий v4.0-v4.0.5) | [лог](changelog/v4.0-v4.0.5.txt) | [4.0.0](releases/sun_evolution_v4.0.0.html), [4.0.1](releases/sun_evolution_v4.0.1.html), [4.0.2](releases/sun_evolution_v4.0.2.html), [4.0.3](releases/sun_evolution_v4.0.3.html), [4.0.4](releases/sun_evolution_v4.0.4.html), [4.0.5](releases/sun_evolution_v4.0.5.html) |
-| 4.1 | Физическая ревизия: честная звёздная эволюция и глубокое время | [лог](changelog/v4.1.txt) | — |
+| 4.1 | Физическая ревизия: честная звёздная эволюция и глубокое время | [лог](changelog/v4.1.txt) | [4.1.0](releases/sun_evolution_v4.1.0.html) |
 | 4.2 | Новая архитектура: модульный проект, сборка и автотесты физики | [лог](changelog/v4.2.txt) | [4.2.0](releases/sun_evolution_v4.2.0.html) |
 | 4.3 | Настоящие эволюционные треки: звёздная физика по моделям MIST | [лог](changelog/v4.3.txt) | [4.3.0](releases/sun_evolution_v4.3.0.html) |
 | 4.4 | Судьба планет из уравнений: приливы, потеря массы и гибель Земли | [лог](changelog/v4.4.txt) | [4.4.0](releases/sun_evolution_v4.4.0.html) |
