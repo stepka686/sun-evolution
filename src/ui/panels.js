@@ -189,7 +189,7 @@ export function initPanels() {
           // Нижний штамп лаборатории
           pctx.fillStyle = '#64748b';
           pctx.font = '12px monospace';
-          pctx.fillText("SOLAR EVOLUTION ASTROPHYSICAL LABORATORY • v5.4 (WebGL + ANDROMEDA + AURORA + BLACK HOLE LENSING)", 50, 990);
+          pctx.fillText("SOLAR EVOLUTION ASTROPHYSICAL LABORATORY • v5.5 (WebGL + VOLUMETRIC CLOUDS + ANDROMEDA + BLACK HOLE LENSING)", 50, 990);
   
           const link = document.createElement('a');
                   link.download = `passport_${S.selectedStarId}_${valAge.innerText}${ageUnitText.innerText}.png`;

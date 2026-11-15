@@ -57,7 +57,7 @@ describe('5.3: сумерки', () => {
 describe('5.3: сумеречные лучи', () => {
   test('Тень облаков считается вдоль луча до звезды: пересечение со слоем облаков, без лучей — без изменений', () => {
     const sky = src('gl/skyGL.js');
-    for (const k of ['cloudShadow(', 'uRays', 'CU_BASE = 1.5, CU_H = 4.0', 's * 0.0093']) assert.ok(sky.includes(k), k);
+    for (const k of ['cloudShadow(', 'uRays', 'CU_BASE = 1.5, CU_H = 4.0']) assert.ok(sky.includes(k), k);
   });
 });
 

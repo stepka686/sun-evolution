@@ -211,12 +211,12 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   // 5.3: кучевые хорошей погоды — разорванные «барашки» набегают и тают у влажных тёплых миров; сквозь просветы
   // между ними идут сумеречные лучи (тени облаков в освещённом воздухе)
   const fairCu = climate.atmo.regime === 'wet' && climate.climate === 'warm' && !optics.cloud ? 0.34 * clamp01((Math.sin(now * 0.00003 + 2.1) + 0.2) * 1.4) : 0;
-  const cumulus = Math.max(cumulusWx, fairCu);
+  const cumulus = S.cumulusOverride ?? Math.max(cumulusWx, fairCu);   // override — для проверок (tools/check/clouds.cjs)
   const cirrus = planet === 'earth' && climate.atmo.regime === 'wet' ? clamp01((Math.sin(now * 0.00004 + 1.3) - 0.4) * 4) : 0;
   const ambientSky = add(scale(zen, 1.2), scale(hor, 0.4));
   const skyGL = drawSkyGL(ctx, { w, h, horizonY, vScale, pxPerRad, azView, hs, sunAz: frame.sunAz, P: skyP, overcast: !!optics.cloud, cloudT,
     E, sat: skyP ? (optics.kind === 'air' || optics.kind === 'ice' ? 1.15 : 1.0) : SAT, lvl, night: nightVis, cumulus, cirrus, time: now, ambient: ambientSky, lowQuality: S.lowQuality,
-    rays: !optics.cloud && cumulus > 0.05 && cumulus < 0.9 && hs > -0.1 });
+    rays: !S.raysOff && !optics.cloud && cumulus > 0.05 && cumulus < 0.9 && hs > -0.1 });
   const topElev = horizonY / vScale;
   const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
   for (let k = 0; k <= 7; k++) {

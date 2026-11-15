@@ -21,8 +21,9 @@ fs.mkdirSync(IMG, { recursive: true });
   const planet = (pl) => p.evaluate((pl) => document.querySelector(`[data-planet="${pl}"]`).click(), pl);
   const tod = (v) => p.evaluate((v) => { const d = document.getElementById('timeOfDaySlider'); d.value = v; d.dispatchEvent(new Event('input', { bubbles: true })); }, v);
   const at = async (now, name) => {
-    await p.evaluate((n) => { window.__freeze = undefined; window.__tOff = n - 1600 - performance.now(); }, now);
-    await p.waitForTimeout(1600);
+    // 5.5: облака копят кадры во времени (шум марша усредняется) — даём им ~3 с
+    await p.evaluate((n) => { window.__freeze = undefined; window.__tOff = n - 3000 - performance.now(); }, now);
+    await p.waitForTimeout(3000);
     await p.evaluate((n) => { window.__freeze = n; }, now);
     await p.waitForTimeout(400);
     await p.locator('#mainCanvas').screenshot({ path: path.join(IMG, `${name}.png`) });
@@ -52,6 +53,11 @@ fs.mkdirSync(IMG, { recursive: true });
   // 7. Красный гигант с Земли
   await S('S.currentAge = 11.9; S.dayOfYear = 172;');
   await tod(9); await at(20000, 'giant_sky');
+  // 9. Веер сумеречных лучей от кучевых у горизонта (5.5)
+  await planet('earth');
+  await S('S.currentAge = 4.6; S.dayOfYear = 105; S.lookAway = false; S.cumulusOverride = 0.35;');
+  await tod(19.63); await at(18000, 'rays');
+  await S('S.cumulusOverride = undefined;');
   // 8. Андромеда над Марсом за 0.3 млрд лет до пролёта (сценарий Gaia 2026), режим «Камера»
   await planet('mars');
   await p.evaluate(() => { const d = document.getElementById('dayOfYearSlider'); d.value = 220; d.dispatchEvent(new Event('input', { bubbles: true })); });

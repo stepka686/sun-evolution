@@ -6,9 +6,11 @@
 //     дальние облака тонут в дымке (воздушная перспектива).
 //   • перистые (~9 км): тонкие вытянутые волокна; на них — гало (render/opticalFx.js).
 // Тон-маппинг — как toDisplay, плюс сумеречное зрение: в темноте цвета гаснут и сдвигаются в синий (эффект Пуркинье).
-import { drawQuad, getGL, glCanvas, glResize, program } from './glcore.js';
+import { drawQuad, getGL, glCanvas, glResize, onContextRestored, program } from './glcore.js';
 import { SKY_M, SKY_LAMBDA, TWI_WEIGHT } from '../physics/skyModel.js';
 import { AURORA_LINES, lineBins, NLC_HEIGHT, NLC_TAU } from '../physics/upperAtmo.js';
+import { CU } from '../physics/clouds.js';
+const f = (v) => Number(v).toFixed(4);
 
 // каналы 8-полосного спектра для линий сияния — из эталона (сумма весов 1); GLSL получает готовые числа
 const LB = AURORA_LINES.map(l => lineBins(l.lambda));
@@ -33,6 +35,7 @@ uniform vec3 uAmbient;
 uniform float uTwiArc, uRays;
 uniform vec4 uAurC;
 uniform float uAurN, uNlc;
+uniform sampler2D uShadow;
 
 float chUp(float x, float mu) { float c = sqrt(1.5707963 * x); return c / ((c - 1.0) * mu + 1.0); }
 float chapman(float X, float h, float cosZ) {
@@ -68,43 +71,69 @@ float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
 float fbm2(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * n2(p); p = p * 2.03 + 7.1; a *= 0.5; } return s; }
-float cumulusD(vec2 q) {
-  // кучевые: крупные «кочаны» (искажённый шум) с резкой границей — облако либо есть, либо нет
+// 5.5: поле кучевых — одно на видимые облака и на их тени. towerE — «мощность» облака над точкой q (км, мировые оси):
+// 0 — край, ≥ 1 — самые мощные башни. Крупные «кочаны» (искажённый шум) и поля облаков ~100 км с широкими просветами
+const float CU_BASE = 1.5, CU_H = 4.0;
+const float CU_SIG = ${f(CU.sigma)};
+float towerE(vec2 q) {
   vec2 w = q * 0.16 + vec2(uTime * 0.004, uTime * 0.0015);
-  vec2 warp = vec2(n2(w * 0.7 + 3.0), n2(w * 0.7 + 9.0));           // искажение — дешёвый одиночный шум
-  float n = fbm2(w + warp * 1.4);
+  vec2 warp = vec2(n2(w * 0.7 + 3.0), n2(w * 0.7 + 9.0));            // искажение — дешёвый одиночный шум
+  vec2 ww = w + warp * 1.4;
+  float n = 0.5 * n2(ww) + 0.25 * n2(ww * 2.03 + 7.1) + 0.094;
   float thr = 0.74 - 0.44 * uCumulus;
-  float patch = smoothstep(0.35, 0.65, n2(q * 0.011 + vec2(5.3, 1.7)));   // те же просветы, что у теней (5.3.2)
-  return clamp((n - thr) * 5.0, 0.0, 1.0) * patch;
+  float patch = smoothstep(0.35, 0.65, n2(q * 0.011 + vec2(5.3, 1.7)));
+  return (n - thr) * 4.0 * patch;
+}
+// плотность (доля облачного воздуха) на высоте z км над точкой q: башня до высоты CU_BASE + CU_H·e, верх скруглён
+float cuDens(float e, vec2 q, float z, float det) {
+  float top = (z - CU_BASE) / CU_H;
+  if (top < 0.0 || top > 1.0 || e <= 0.0) return 0.0;
+  // «цветная капуста»: мелкие клубы съедают край башни, ядро не трогают (det — сила деталей: на крупном шаге
+  // марша их не разглядеть, и они дают только зерно — тогда det → 0)
+  float cl = det > 0.0 ? n2(q * 1.7 + vec2(z * 1.3, -z * 0.9) + uTime * 0.02) - 0.5 : 0.0;
+  return clamp((e - top) * 3.0 - 0.7 * det * cl * (1.0 - clamp(e - top, 0.0, 1.0)), 0.0, 1.0);
+}
+vec2 sunToWorld(vec2 xy) { float ca = cos(uSunAz), sa = sin(uSunAz); return vec2(ca * xy.x - sa * xy.y, sa * xy.x + ca * xy.y); }
+// пересечение луча P + s·D со сферой радиуса rr: [ближний, дальний] корень (или (1e9, -1e9) — мимо)
+vec2 sphereHit(vec3 P, vec3 D, float rr) {
+  float b = dot(P, D), c = dot(P, P) - rr * rr, disc = b * b - c;
+  if (disc < 0.0) return vec2(1e9, -1e9);
+  float sq = sqrt(disc);
+  return vec2(-b - sq, -b + sq);
+}
+// отрезок луча внутри слоя облаков [CU_BASE, CU_BASE + CU_H] (s ≥ 0); для простоты — первый вход и выход
+vec2 slabSeg(vec3 P, vec3 D) {
+  vec2 lo = sphereHit(P, D, uR + CU_BASE), hi = sphereHit(P, D, uR + CU_BASE + CU_H);
+  float z = length(P) - uR;
+  float a, b;
+  if (z < CU_BASE) { a = lo.y; b = hi.y; }                          // снизу: вход через основание, выход через верх
+  else if (z > CU_BASE + CU_H) { a = hi.x; b = lo.x < 1e8 && lo.x > 0.0 ? lo.x : hi.y; }   // сверху
+  else { a = 0.0; b = (lo.x > 0.0 && lo.x < 1e8) ? lo.x : hi.y; }   // внутри слоя
+  return vec2(max(a, 0.0), b);
 }
 
-// 5.3.2: сумеречные лучи от объёмных кучевых. Облако — «башня» над основанием 1.5 км: чем плотнее облачная масса
-// (тот же шум, что у видимых облаков, 2 октавы), тем выше вершина, до 1.5 + 4 км (кучевые хорошей погоды и
-// мощные кучевые). Луч к звезде из точки P проверяется в 8 точках (0.8…220 км, по логарифму): попал в башню —
-// тень. Башни у горизонта со стороны низкой звезды отбрасывают тени вверх, в освещённый воздух, — веер лучей.
-// Полутень: край тени размыт на s·0.0093 км (диск звезды 0.53°); далёкие тени слабее — их заполняет рассеянный свет
-const float CU_BASE = 1.5, CU_H = 4.0;
+// 5.5: тень облаков для сумеречных лучей — по карте теней. Солнечные лучи параллельны, поэтому тень в точке P
+// зависит только от того, какой луч через неё проходит: луч задаётся сдвигом y вбок от азимута звезды и сдвигом w
+// поперёк луча в вертикальной плоскости. Карта (FS_SHADOW) один раз на кадр проходит каждый такой луч на 310 км
+// (120 шагов) сквозь слой облаков и хранит пропускание. Соседние пиксели неба берут тень из соседних текселей —
+// тени когерентны, и столбы тени от башен у горизонта складываются в веер лучей.
+// Упрощение: пропускание считается от точки луча, ближайшей к наблюдателю, а не от самой P (для точек в первых
+// десятках км это неважно). Полутень — билинейная выборка (тексель 0.6 км ≈ полутень на ~65 км).
+const float SH_Y = 60.0, SH_W = 30.0;
 float cloudShadow(vec3 P, vec3 Sd) {
-  float ca = cos(uSunAz), sa = sin(uSunAz), occ = 0.0;
-  float thr = 0.74 - 0.44 * uCumulus;
-  for (int i = 0; i < 8; i++) {
-    float s = 0.8 * pow(2.3, float(i));
-    vec3 X = P + s * Sd;
-    float z = length(X) - uR;
-    if (z < CU_BASE || z > CU_BASE + CU_H) continue;
-    vec2 q = vec2(ca * X.x - sa * X.y, sa * X.x + ca * X.y);
-    vec2 w = q * 0.16 + vec2(uTime * 0.004, uTime * 0.0015);
-    vec2 warp = vec2(n2(w * 0.7 + 3.0), n2(w * 0.7 + 9.0));
-    vec2 ww = w + warp * 1.4;
-    float n = 0.5 * n2(ww) + 0.25 * n2(ww * 2.03 + 7.1) + 0.094;
-    // облачность неоднородна на масштабе ~100 км: между облачными полями — широкие просветы, сквозь них и идут лучи
-    float patch = smoothstep(0.35, 0.65, n2(q * 0.011 + vec2(5.3, 1.7)));
-    float e = (n - thr) * 4.0 * patch;               // 0 — край облака, ≥1 — самые мощные башни
-    float top = (z - CU_BASE) / CU_H;                 // на какой доле высоты башни находится точка луча
-    float soft = 1.0 + s * 0.0093 / 6.0 * 4.0;
-    occ = max(occ, clamp((e - top) * 3.0 / soft, 0.0, 1.0) * exp(-s / 300.0));
-  }
-  return 1.0 - 0.85 * occ;
+  vec3 X = vec3(P.x, P.y, P.z - (uR + 0.002));
+  vec3 N = vec3(-Sd.z, 0.0, Sd.x);
+  vec2 uv = vec2((X.y + SH_Y) / (2.0 * SH_Y), (dot(X, N) + SH_W) / (2.0 * SH_W));
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;
+  return 0.1 + 0.9 * texture2D(uShadow, uv).r;
+}
+
+// индикатриса и многократное рассеяние в облаке — как в physics/clouds.js
+float cuPhase(float c, float k) { return ${f(CU.wF)} * hg(${f(CU.gF)} * k, c) + ${f(1 - CU.wF)} * hg(${f(CU.gB)} * k, c); }
+float cuSun(float tau, float c) {
+  float L = 0.0, a = 1.0, b = 1.0, k = 1.0;
+  for (int i = 0; i < ${CU.octaves}; i++) { L += b * exp(-a * tau) * cuPhase(c, k); a *= ${f(CU.octA)}; b *= ${f(CU.octB)}; k *= ${f(CU.octC)}; }
+  return L;
 }
 
 // небо в направлении (высота hV, cosG к звезде; d3 — луч взгляда в системе «x — к азимуту звезды»)
@@ -140,16 +169,18 @@ vec3 sky(float hV, float cosG, vec3 d3) {
     // навигационные сумерки: воздух со стороны звезды ещё освещён (эталон — skySpectral)
     sunT(r + uH, cos(max(0.0, acos(mu) - uTwiArc)), f0, f1);
     vec4 sh0 = s0, sh1 = s1;
-    // точка тени дрожит внутри шага (хеш пикселя) — вместо колец от фиксированных шагов мелкий шум, который сглаживается
+    // 5.5: тень — из карты теней, в середине шага: соседние пиксели видят одни и те же столбы тени (без дрожания —
+    // с ним лучи рассыпались в шум)
     if (uRays > 0.5) {
-      float j = h2(gl_FragCoord.xy + float(k) * 7.3);
-      float cs = cloudShadow(vec3(0.0, 0.0, r0) + (tm + (j - 0.5) * dt) * d3, Sd);
+      float cs = cloudShadow(vec3(0.0, 0.0, r0) + tm * d3, Sd);
       sh0 *= cs; sh1 *= cs;
     }
     float dR = exp(-h / uH) / uH, dA = exp(-h / uHa) / uHa;
     vec4 bR0 = uTauR0 * dR, bA0 = uTauA0 * dA, bR1 = uTauR1 * dR, bA1 = uTauA1 * dA;
     vec4 ms0 = msk0 * ((0.45 * s0 + 0.55 * u0) * (1.0 - ${TWI_WEIGHT}) + ${TWI_WEIGHT} * f0);
     vec4 ms1 = msk1 * ((0.45 * s1 + 0.55 * u1) * (1.0 - ${TWI_WEIGHT}) + ${TWI_WEIGHT} * f1);
+    // в столбе тени теряется и часть многократно рассеянного света (вторые порядки тоже приходят от звезды)
+    if (uRays > 0.5) { float mk = mix(1.0, sh0.x / max(1e-6, s0.x), 0.5); ms0 *= mk; ms1 *= mk; }
     L0 += uF0 * Tv0 * (sh0 * (bR0 * pR + bA0 * uWA0 * pA0) + (bR0 + bA0 * uWA0) * ms0) * dt;
     L1 += uF1 * Tv1 * (sh1 * (bR1 * pR + bA1 * uWA1 * pA1) + (bR1 + bA1 * uWA1) * ms1) * dt;
     Tv0 *= exp(-(bR0 + bA0) * dt); Tv1 *= exp(-(bR1 + bA1) * dt);
@@ -206,24 +237,57 @@ const FS_CLOUDS = HEAD + `void main() {
   float muS = sin(uHs);
   vec3 sunRGB; { vec4 a0, a1; sunT(uR + 1.5, muS, a0, a1); sunRGB = toRGB(uF0 * a0, uF1 * a1); }
   vec3 col = vec3(0.0); float alpha = 0.0;
-  // кучевые: основание 1.5 км
+  // 5.5: кучевые — объёмные башни: луч взгляда идёт сквозь слой облаков (марш с дрожанием), в каждой точке —
+  // свет звезды сквозь облако до неё (2 пробы к звезде, многократное рассеяние октавами), «пудра», свет неба сверху
   if (uCumulus > 0.01) {
-    float rc = uR + 1.5, b = uR * muV;
-    float t = -b + sqrt(b * b + rc * rc - uR * uR);
-    vec2 q = dir * t * sinV;
-    float d = cumulusD(q);
-    if (d > 0.0) {
-      // свет сквозь облако снизу: толстая середина тёмная (закон Бугера), края светятся;
-      // у звезды — серебристый край от рассеяния вперёд; бок, обращённый к звезде, подсвечен сильнее
-      float d2 = cumulusD(q + sunDir * 1.2) * 2.0;
-      float through = exp(-3.2 * d) * (1.0 - exp(-4.0 * d));
-      float side = exp(-1.4 * d2) * (1.0 - exp(-2.5 * d));
-      float phase = 0.7 * hg(0.65, cosG) + 0.3;
+    float dz = az - uSunAz;
+    vec3 D = vec3(cos(h) * cos(dz), cos(h) * sin(dz), sin(h));
+    vec3 O = vec3(0.0, 0.0, uR + 0.002);
+    vec3 Sd = vec3(cos(uHs), 0.0, muS);
+    vec2 seg = slabSeg(O, D);
+    float tA = seg.x, tB = min(seg.y, min(tA + 40.0, 70.0));
+    if (tB > tA) {
       float day = max(0.0, muS + 0.08);
-      vec3 cc = sunRGB * day * (through * phase * 3.0 + side * 0.9) + uAmbient * (0.75 - 0.4 * d);
-      float fade = exp(-t / 40.0);                            // дальние облака тонут в дымке
-      float a = smoothstep(0.0, 0.25, d) * (0.15 + 0.85 * fade) * fade * smoothstep(0.0, 0.03, muV);
-      col = toDisplay(cc) * uLvl; alpha = a;
+      // дрожание шага — «шум градиентов» (Jimenez 2014): соседние пиксели получают разные, но упорядоченные сдвиги,
+      // и после растяжения картинки они усредняются в гладкий край, а не в зерно, как от случайного хеша
+      // дрожание шага: каждый кадр — свой случайный сдвиг; кадры копятся в кэше (см. drawSkyGL), и шум усредняется
+      // во времени (упорядоченный «шум градиентов» давал на дальних облаках устойчивую «расчёску»)
+      float jit = h2(gl_FragCoord.xy + 17.13 * mod(floor(uTime * 10.0), 61.0));
+      float T = 1.0, aSum = 0.0;
+      vec3 Lsum = vec3(0.0);
+      const int N = ${'${N}'};
+      float dt = (tB - tA) / float(N);
+      float detK = clamp(1.6 - dt, 0.0, 1.0);
+      for (int i = 0; i < N; i++) {
+        float t = tA + (float(i) + jit) * dt;
+        vec3 X = O + t * D;
+        float z = length(X) - uR;
+        vec2 q = sunToWorld(X.xy);
+        float e = towerE(q);
+        float d = cuDens(e, q, z, detK);
+        if (d <= 0.002) continue;
+        // свет звезды: оптическая толщина до неё по двум пробам (0.35 и 1.2 км) и выход из слоя сверху
+        vec3 X1 = X + 0.35 * Sd, X2 = X + 1.2 * Sd;
+        float d1 = cuDens(towerE(sunToWorld(X1.xy)), sunToWorld(X1.xy), length(X1) - uR, 0.0);
+        float d2 = cuDens(towerE(sunToWorld(X2.xy)), sunToWorld(X2.xy), length(X2) - uR, 0.0);
+        float tauS = CU_SIG * (0.35 * d + 0.6 * d1 + 1.2 * d2) / max(0.15, muS + 0.15);
+        float tauStep = CU_SIG * d * dt;
+        float powd = 1.0 - exp(-2.0 * CU_SIG * d * 0.6);
+        float topness = clamp((z - CU_BASE) / CU_H + 0.3 * (1.0 - d), 0.0, 1.0);
+        vec3 Ls = sunRGB * day * cuSun(tauS, cosG) * powd;
+        vec3 La = uAmbient * (0.3 + 0.55 * topness);
+        // воздушная перспектива: дальнее облако не становится прозрачным, а тонет в голубоватой дымке
+        float haze = exp(-t / 60.0);
+        float w = T * (1.0 - exp(-tauStep));
+        Lsum += w * mix(uAmbient * 0.85, Ls + La, haze);
+        aSum += w;
+        T *= exp(-tauStep);
+        if (T < 0.02) break;
+      }
+      if (aSum > 0.002) {
+        col = toDisplay(Lsum / aSum) * uLvl;
+        alpha = clamp(aSum, 0.0, 1.0) * smoothstep(0.0, 0.03, muV);
+      }
     }
   }
   // перистые: 9 км, вытянутые волокна вдоль ветра, полупрозрачные, светятся рассеянием вперёд
@@ -241,6 +305,23 @@ const FS_CLOUDS = HEAD + `void main() {
     col = alpha > 0.0 ? col / alpha : col;
   }
   gl_FragColor = vec4(col * alpha, alpha);         // премультипликация — ложится поверх неба
+}`;
+
+// 5.5: карта теней облаков: тексель (y, w) — солнечный луч X(s) = w·N + y·Ŷ + s·Sd в осях «x — к азимуту звезды».
+// Оптическая толщина облаков вдоль луча на s ∈ [−10, 300] км (дальние тени слабее — их заполняет рассеянный свет)
+const FS_SHADOW = HEAD + `void main() {
+  float y = (vUv.x * 2.0 - 1.0) * SH_Y, w = (vUv.y * 2.0 - 1.0) * SH_W;
+  vec3 Sd = vec3(cos(uHs), 0.0, sin(uHs)), N = vec3(-Sd.z, 0.0, Sd.x);
+  float tau = 0.0;
+  for (int i = 0; i < 120; i++) {
+    float sx = -10.0 + (float(i) + 0.5) * 2.583;
+    vec3 X = w * N + vec3(0.0, y, 0.0) + sx * Sd;
+    float z = X.z + dot(X.xy, X.xy) / (2.0 * uR);          // высота над землёй: земля уходит вниз как x²/2R
+    if (z < CU_BASE || z > CU_BASE + CU_H) continue;
+    vec2 q = sunToWorld(X.xy);
+    tau += cuDens(towerE(q), q, z, 0.0) * 2.583 * 1.2 * exp(-max(sx, 0.0) / 150.0);
+  }
+  gl_FragColor = vec4(vec3(exp(-tau)), 1.0);
 }`;
 
 // 5.3: верхняя атмосфера — полярное сияние (излучение линий 557.7/630/427.8 нм и N₂ 1PG на своих высотах, эталон —
@@ -344,7 +425,7 @@ let broken = false;
 
 // Кэш: небо меняется медленно (высота звезды, направление взгляда, экспозиция) — пересчитываем его, только когда
 // что-то сдвинулось заметно, и держим готовую картинку в 2D-холсте. Облака плывут — их обновляем ~15 раз в секунду.
-const cache = { sky: null, skyKey: '', clouds: null, cloudKey: '', cloudT: 0, upper: null, upperKey: '', upperT: 0 };
+const cache = { sky: null, skyKey: '', clouds: null, cloudNew: null, cloudPing: null, cloudKey: '', cloudT: 0, upper: null, upperKey: '', upperT: 0 };
 function off(c, W, H) {
   if (!c) c = document.createElement('canvas');
   if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
@@ -376,6 +457,31 @@ function setUniforms(gl, uni, p, W, H) {
   if (uni.uAmbient) gl.uniform3f(uni.uAmbient, am[0], am[1], am[2]);
 }
 
+// 5.5: карта теней облаков — рисуется в GL-холст и копируется в текстуру прямо на видеокарте (copyTexImage2D,
+// без чтения в процессор); небо читает её в том же контексте
+const SHW = 192, SHH = 96;
+let shadowTex = null;
+onContextRestored(() => { shadowTex = null; });
+function renderShadowMap(gl, p) {
+  glResize(SHW, SHH);
+  const { p: prog, uni } = program('skyShadow55', FS_SHADOW);
+  gl.useProgram(prog);
+  gl.disable(gl.BLEND);
+  setUniforms(gl, uni, p, SHW, SHH);
+  drawQuad();
+  if (!shadowTex) {
+    shadowTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, shadowTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, shadowTex);
+  gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, SHW, SHH, 0);
+}
+
 function renderPass(gl, name, fs, p, W, H, target) {
   glResize(W, H);
   const { p: prog, uni } = program(name, fs);
@@ -383,6 +489,7 @@ function renderPass(gl, name, fs, p, W, H, target) {
   gl.disable(gl.BLEND);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   setUniforms(gl, uni, p, W, H);
+  if (uni.uShadow && shadowTex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shadowTex); gl.uniform1i(uni.uShadow, 0); }
   drawQuad();
   const tctx = target.getContext('2d');
   tctx.clearRect(0, 0, W, H);
@@ -434,6 +541,7 @@ export function drawSkyGL(ctx, p) {
       p.rays ? 'r' + q(p.cumulus, 0.01) + ':' + Math.floor((p.time || 0) / 250) : ''].join('|');
     if (skyKey !== cache.skyKey) {
       cache.sky = off(cache.sky, Ws, Hs);
+      if (p.rays && !p.overcast) renderShadowMap(gl, p);
       renderPass(gl, 'skyAtm52', FS_ATM, p, Ws, Hs, cache.sky);
       cache.skyKey = skyKey;
     }
@@ -445,11 +553,25 @@ export function drawSkyGL(ctx, p) {
     if (!p.overcast && ((p.cumulus || 0) > 0.01 || (p.cirrus || 0) > 0.01)) {
       const kc = p.lowQuality ? 0.4 : 0.6;
       const Wc = Math.max(16, Math.round(p.w * kc)), Hc = Math.max(16, Math.round(p.horizonY * kc));
-      const ck = [Wc, Hc, skyKey, q(p.cumulus, 0.01), q(p.cirrus, 0.01)].join('|');
+      const ck = [Wc, Hc, skyKey.replace(/:\d+$/, ''), q(p.cumulus, 0.01), q(p.cirrus, 0.01)].join('|');   // без счётчика времени лучей — иначе накопление сбрасывалось бы 4 раза в секунду
       const now = p.time || 0;
       if (ck !== cache.cloudKey || now - cache.cloudT > 100 || now < cache.cloudT) {
-        cache.clouds = off(cache.clouds, Wc, Hc);
-        renderPass(gl, 'skyClouds52', FS_CLOUDS, { ...p, h: p.horizonY, horizonY: p.horizonY }, Wc, Hc, cache.clouds);
+        // 5.5: объёмные облака — 16 шагов марша, на слабых телефонах 9. Новый кадр (свой сдвиг шагов) смешивается
+        // с накопленным: A' = (1−k)·A + k·N. Сменился вид (взгляд, звезда, экспозиция) — накопление сначала
+        const nSteps = p.lowQuality ? 9 : 16;
+        cache.cloudNew = off(cache.cloudNew, Wc, Hc);
+        renderPass(gl, 'skyClouds55_' + nSteps, FS_CLOUDS.replace('${N}', String(nSteps)), { ...p, h: p.horizonY, horizonY: p.horizonY }, Wc, Hc, cache.cloudNew);
+        // накопление сбрасываем только при смене геометрии (взгляд, звезда, облачность), а не при подстройке глаза
+        const geo = [Wc, Hc, q(p.azView, 0.004), q(p.hs, 0.002), q(p.cumulus, 0.01), q(p.cirrus, 0.01), p.lowQuality ? 1 : 0].join('|');
+        const fresh = geo !== cache.cloudGeo || !cache.clouds || cache.clouds.width !== Wc || cache.clouds.height !== Hc;
+        cache.cloudGeo = geo;
+        const k = fresh ? 1 : 0.22;
+        const B = cache.cloudPing = off(cache.cloudPing, Wc, Hc), bc = B.getContext('2d');
+        bc.globalCompositeOperation = 'source-over'; bc.globalAlpha = 1; bc.clearRect(0, 0, Wc, Hc);
+        if (k < 1) { bc.globalAlpha = 1 - k; bc.drawImage(cache.clouds, 0, 0); }
+        bc.globalCompositeOperation = 'lighter'; bc.globalAlpha = k; bc.drawImage(cache.cloudNew, 0, 0);
+        bc.globalCompositeOperation = 'source-over'; bc.globalAlpha = 1;
+        cache.cloudPing = cache.clouds; cache.clouds = B;
         cache.cloudKey = ck; cache.cloudT = now;
       }
       ctx.drawImage(cache.clouds, 0, 0, Wc, Hc, 0, 0, p.w, p.horizonY);

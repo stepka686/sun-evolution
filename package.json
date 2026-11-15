@@ -1,6 +1,6 @@
 {
   "name": "sun-evolution",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "description": "Интерактивная симуляция эволюции Солнца и звёзд разных масс",
   "private": true,
   "type": "module",
