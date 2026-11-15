@@ -3,13 +3,13 @@
 **Интерактивная симуляция жизни звёзд, планет, климата и неба — от облака газа до чёрного карлика. Физика честная: формулы с источниками, калибровка по реальным данным.**
 
 [![CI](https://github.com/stepka686/sun-evolution/actions/workflows/ci.yml/badge.svg)](https://github.com/stepka686/sun-evolution/actions/workflows/ci.yml)
-![версия](https://img.shields.io/badge/версия-5.5.0-3987e5)
+![версия](https://img.shields.io/badge/версия-5.5.1-3987e5)
 ![тесты](https://img.shields.io/badge/автотесты-302-0ca30c)
 ![размер](https://img.shields.io/badge/один_HTML-1.6_МБ-c3c2b7)
 ![офлайн](https://img.shields.io/badge/работает-без_интернета-c3c2b7)
 [![лицензия](https://img.shields.io/badge/лицензия-MIT-c3c2b7)](LICENSE)
 
-### [▶ Открыть в браузере](https://stepka686.github.io/sun-evolution/) · [⬇ Скачать HTML](https://github.com/stepka686/sun-evolution/raw/main/releases/sun_evolution_v5.5.0.html) · [🗂 Все версии](https://stepka686.github.io/sun-evolution/releases/)
+### [▶ Открыть в браузере](https://stepka686.github.io/sun-evolution/) · [⬇ Скачать HTML](https://github.com/stepka686/sun-evolution/raw/main/releases/sun_evolution_v5.5.1.html) · [🗂 Все версии](https://stepka686.github.io/sun-evolution/releases/)
 
 Весь проект — один HTML-файл: открывается на телефоне и компьютере, работает без интернета и сервера.
 

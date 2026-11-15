@@ -4,7 +4,7 @@ import { drawGalaxyView } from '../render/galaxyView.js';
 import { drawTelescope } from './telescope.js';
 import { drawTransit } from './transit.js';
 import { cinemaTick, drawCinemaCaption } from './cinema.js';
-import { trackFrameTime } from './perf.js';
+import { drawFpsOverlay, trackFrameTime } from './perf.js';
 import { drawHrBig } from './hr.js';
 import { updateFormulaPanel } from './formulas.js';
 import { updateAudio } from '../audio/audio.js';
@@ -60,6 +60,7 @@ export function render(now) {
     else if (S.currentView === 'galaxy') drawGalaxyView(mCtx, mRect.width, mRect.height, state, now);
     else drawInterstellarView(mCtx, mRect.width, mRect.height, state, now);
     drawCinemaCaption(mCtx, mRect.width, mRect.height);
+    drawFpsOverlay(mCtx, mRect.width);
     drawTransit(state, now);
     avoidToolbarOverlap();
 

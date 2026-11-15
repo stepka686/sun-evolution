@@ -47,11 +47,24 @@ export function glInfo() {
   return { ok: true, version: isGL2 ? 'WebGL 2' : 'WebGL 1', renderer };
 }
 
-/** Размер буфера кадра (пиксели устройства) */
+/**
+ * Область рисования w×h (пиксели устройства). 5.5.1: холст только растёт — смена его размера пересоздаёт буфер
+ * на видеокарте, и при чередовании проходов разного размера (небо, облака, карта теней, шар планеты) это съедало
+ * больше половины кадра. Проход рисует в левый нижний угол холста (viewport + scissor), копируют его через glSrcY.
+ */
+let vw = 0, vh = 0;
 export function glResize(w, h) {
-  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  if (canvas.width < w || canvas.height < h) {
+    canvas.width = Math.max(canvas.width, Math.ceil(w / 64) * 64);
+    canvas.height = Math.max(canvas.height, Math.ceil(h / 64) * 64);
+  }
+  vw = w; vh = h;
   gl.viewport(0, 0, w, h);
+  gl.enable(gl.SCISSOR_TEST);
+  gl.scissor(0, 0, w, h);
 }
+/** Верх области последнего прохода в координатах картинки холста (у WebGL начало — внизу слева) */
+export function glSrcY() { return canvas.height - vh; }
 
 function compile(type, src) {
   const sh = gl.createShader(type);
@@ -144,7 +157,7 @@ export function layerStore(c, key, now, W, H) {
   if (c.canvas.width !== W || c.canvas.height !== H) { c.canvas.width = W; c.canvas.height = H; }
   const x = c.canvas.getContext('2d');
   x.clearRect(0, 0, W, H);
-  x.drawImage(canvas, 0, 0, W, H, 0, 0, W, H);
+  x.drawImage(canvas, 0, canvas.height - vh, W, H, 0, 0, W, H);
   c.key = key; c.t = now;
   return c.canvas;
 }

@@ -6,7 +6,7 @@
 //     дальние облака тонут в дымке (воздушная перспектива).
 //   • перистые (~9 км): тонкие вытянутые волокна; на них — гало (render/opticalFx.js).
 // Тон-маппинг — как toDisplay, плюс сумеречное зрение: в темноте цвета гаснут и сдвигаются в синий (эффект Пуркинье).
-import { drawQuad, getGL, glCanvas, glResize, onContextRestored, program } from './glcore.js';
+import { drawQuad, getGL, glCanvas, glResize, glSrcY, onContextRestored, program } from './glcore.js';
 import { SKY_M, SKY_LAMBDA, TWI_WEIGHT } from '../physics/skyModel.js';
 import { AURORA_LINES, lineBins, NLC_HEIGHT, NLC_TAU } from '../physics/upperAtmo.js';
 import { CU } from '../physics/clouds.js';
@@ -36,6 +36,7 @@ uniform float uTwiArc, uRays;
 uniform vec4 uAurC;
 uniform float uAurN, uNlc;
 uniform sampler2D uShadow;
+uniform sampler2D uField;
 
 float chUp(float x, float mu) { float c = sqrt(1.5707963 * x); return c / ((c - 1.0) * mu + 1.0); }
 float chapman(float X, float h, float cosZ) {
@@ -83,6 +84,14 @@ float towerE(vec2 q) {
   float thr = 0.74 - 0.44 * uCumulus;
   float patch = smoothstep(0.35, 0.65, n2(q * 0.011 + vec2(5.3, 1.7)));
   return (n - thr) * 4.0 * patch;
+}
+// 5.5.1: поле башен заранее посчитано в текстуру 512×512 на ±200 км вокруг наблюдателя (FS_FIELD, раз в ~0.5 с):
+// облака и карта теней берут его одной выборкой вместо пяти шумов. Хранится e ∈ [−0.2, 1.8]
+const float FIELD_R = 200.0;
+float towerF(vec2 q) {
+  vec2 uv = q / (2.0 * FIELD_R) + 0.5;
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return -1.0;
+  return texture2D(uField, uv).r * 2.0 - 0.2;
 }
 // плотность (доля облачного воздуха) на высоте z км над точкой q: башня до высоты CU_BASE + CU_H·e, верх скруглён
 float cuDens(float e, vec2 q, float z, float det) {
@@ -263,13 +272,14 @@ const FS_CLOUDS = HEAD + `void main() {
         vec3 X = O + t * D;
         float z = length(X) - uR;
         vec2 q = sunToWorld(X.xy);
-        float e = towerE(q);
+        float e = towerF(q);
         float d = cuDens(e, q, z, detK);
         if (d <= 0.002) continue;
         // свет звезды: оптическая толщина до неё по двум пробам (0.35 и 1.2 км) и выход из слоя сверху
         vec3 X1 = X + 0.35 * Sd, X2 = X + 1.2 * Sd;
-        float d1 = cuDens(towerE(sunToWorld(X1.xy)), sunToWorld(X1.xy), length(X1) - uR, 0.0);
-        float d2 = cuDens(towerE(sunToWorld(X2.xy)), sunToWorld(X2.xy), length(X2) - uR, 0.0);
+        vec2 q1 = sunToWorld(X1.xy), q2 = sunToWorld(X2.xy);
+        float d1 = cuDens(towerF(q1), q1, length(X1) - uR, 0.0);
+        float d2 = cuDens(towerF(q2), q2, length(X2) - uR, 0.0);
         float tauS = CU_SIG * (0.35 * d + 0.6 * d1 + 1.2 * d2) / max(0.15, muS + 0.15);
         float tauStep = CU_SIG * d * dt;
         float powd = 1.0 - exp(-2.0 * CU_SIG * d * 0.6);
@@ -307,6 +317,12 @@ const FS_CLOUDS = HEAD + `void main() {
   gl_FragColor = vec4(col * alpha, alpha);         // премультипликация — ложится поверх неба
 }`;
 
+// 5.5.1: поле башен в текстуру (мировые оси, наблюдатель в центре)
+const FS_FIELD = HEAD + `void main() {
+  vec2 q = (vUv * 2.0 - 1.0) * FIELD_R;
+  gl_FragColor = vec4(vec3((clamp(towerE(q), -0.2, 1.8) + 0.2) / 2.0), 1.0);
+}`;
+
 // 5.5: карта теней облаков: тексель (y, w) — солнечный луч X(s) = w·N + y·Ŷ + s·Sd в осях «x — к азимуту звезды».
 // Оптическая толщина облаков вдоль луча на s ∈ [−10, 300] км (дальние тени слабее — их заполняет рассеянный свет)
 const FS_SHADOW = HEAD + `void main() {
@@ -319,7 +335,7 @@ const FS_SHADOW = HEAD + `void main() {
     float z = X.z + dot(X.xy, X.xy) / (2.0 * uR);          // высота над землёй: земля уходит вниз как x²/2R
     if (z < CU_BASE || z > CU_BASE + CU_H) continue;
     vec2 q = sunToWorld(X.xy);
-    tau += cuDens(towerE(q), q, z, 0.0) * 2.583 * 1.2 * exp(-max(sx, 0.0) / 150.0);
+    tau += cuDens(towerF(q), q, z, 0.0) * 2.583 * 1.2 * exp(-max(sx, 0.0) / 150.0);
   }
   gl_FragColor = vec4(vec3(exp(-tau)), 1.0);
 }`;
@@ -459,24 +475,48 @@ function setUniforms(gl, uni, p, W, H) {
 
 // 5.5: карта теней облаков — рисуется в GL-холст и копируется в текстуру прямо на видеокарте (copyTexImage2D,
 // без чтения в процессор); небо читает её в том же контексте
-const SHW = 192, SHH = 96;
-let shadowTex = null;
-onContextRestored(() => { shadowTex = null; });
+const SHW = 192, SHH = 96, FIELD_N = 512;
+let shadowTex = null, fieldTex = null, fieldT = -1e9, fieldKey = '';
+onContextRestored(() => { shadowTex = null; fieldTex = null; fieldKey = ''; });
+function makeTex(gl) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+// 5.5.1: поле башен — раз в ~0.5 с (облака плывут медленно) или при смене облачности
+function updateField(gl, p) {
+  const now = p.time || 0, key = (p.cumulus || 0).toFixed(2);
+  if (fieldTex && key === fieldKey && now - fieldT < 500 && now >= fieldT) return;
+  glResize(FIELD_N, FIELD_N);
+  const { p: prog, uni } = program('skyField551', FS_FIELD);
+  gl.useProgram(prog);
+  gl.disable(gl.BLEND);
+  setUniforms(gl, uni, p, FIELD_N, FIELD_N);
+  drawQuad();
+  if (!fieldTex) fieldTex = makeTex(gl);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+  gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, FIELD_N, FIELD_N, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  fieldT = now; fieldKey = key;
+}
+function bindTextures(gl, uni) {
+  if (uni.uShadow && shadowTex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shadowTex); gl.uniform1i(uni.uShadow, 0); }
+  if (uni.uField && fieldTex) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fieldTex); gl.uniform1i(uni.uField, 1); gl.activeTexture(gl.TEXTURE0); }
+}
 function renderShadowMap(gl, p) {
   glResize(SHW, SHH);
   const { p: prog, uni } = program('skyShadow55', FS_SHADOW);
   gl.useProgram(prog);
   gl.disable(gl.BLEND);
   setUniforms(gl, uni, p, SHW, SHH);
+  bindTextures(gl, uni);
   drawQuad();
-  if (!shadowTex) {
-    shadowTex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, shadowTex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  }
+  if (!shadowTex) shadowTex = makeTex(gl);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, shadowTex);
   gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, SHW, SHH, 0);
@@ -489,11 +529,11 @@ function renderPass(gl, name, fs, p, W, H, target) {
   gl.disable(gl.BLEND);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   setUniforms(gl, uni, p, W, H);
-  if (uni.uShadow && shadowTex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shadowTex); gl.uniform1i(uni.uShadow, 0); }
+  bindTextures(gl, uni);
   drawQuad();
   const tctx = target.getContext('2d');
   tctx.clearRect(0, 0, W, H);
-  tctx.drawImage(glCanvas(), 0, 0, W, H, 0, 0, W, H);
+  tctx.drawImage(glCanvas(), 0, glSrcY(), W, H, 0, 0, W, H);
 }
 
 /** Верхняя атмосфера (сияние, серебристые облака) поверх неба, сложением света. false — нет GPU */
@@ -537,11 +577,11 @@ export function drawSkyGL(ctx, p) {
     const q = (v, step) => Math.round(v / step);
     const skyKey = [Ws, Hs, q(p.hs, 0.0015), q(p.azView, 0.003), q(Math.log(p.E), 0.03), q(p.lvl, 0.01), q(p.night || 0, 0.02), p.overcast ? 1 : 0,
       q(p.P.tauR[3], 1e-4), q(p.P.tauA[3], 1e-4), q(p.P.F[3], 1e-9 + p.P.F[3] * 0.01), q(p.horizonY, 1), p.P.cityGlow ? 1 : 0,
-      // сумеречные лучи зависят от плывущих облаков — тогда небо пересчитывается ~4 раза в секунду
-      p.rays ? 'r' + q(p.cumulus, 0.01) + ':' + Math.floor((p.time || 0) / 250) : ''].join('|');
+      // сумеречные лучи зависят от плывущих облаков — тогда небо пересчитывается ~2 раза в секунду
+      p.rays ? 'r' + q(p.cumulus, 0.01) + ':' + Math.floor((p.time || 0) / 500) : ''].join('|');
     if (skyKey !== cache.skyKey) {
       cache.sky = off(cache.sky, Ws, Hs);
-      if (p.rays && !p.overcast) renderShadowMap(gl, p);
+      if (p.rays && !p.overcast) { updateField(gl, p); renderShadowMap(gl, p); }
       renderPass(gl, 'skyAtm52', FS_ATM, p, Ws, Hs, cache.sky);
       cache.skyKey = skyKey;
     }
@@ -555,17 +595,18 @@ export function drawSkyGL(ctx, p) {
       const Wc = Math.max(16, Math.round(p.w * kc)), Hc = Math.max(16, Math.round(p.horizonY * kc));
       const ck = [Wc, Hc, skyKey.replace(/:\d+$/, ''), q(p.cumulus, 0.01), q(p.cirrus, 0.01)].join('|');   // без счётчика времени лучей — иначе накопление сбрасывалось бы 4 раза в секунду
       const now = p.time || 0;
-      if (ck !== cache.cloudKey || now - cache.cloudT > 100 || now < cache.cloudT) {
+      if (ck !== cache.cloudKey || now - cache.cloudT > 200 || now < cache.cloudT) {   // 5.5.1: 5 раз в секунду — копирование из GPU дорогое
         // 5.5: объёмные облака — 16 шагов марша, на слабых телефонах 9. Новый кадр (свой сдвиг шагов) смешивается
         // с накопленным: A' = (1−k)·A + k·N. Сменился вид (взгляд, звезда, экспозиция) — накопление сначала
         const nSteps = p.lowQuality ? 9 : 16;
+        if ((p.cumulus || 0) > 0.01) updateField(gl, p);
         cache.cloudNew = off(cache.cloudNew, Wc, Hc);
         renderPass(gl, 'skyClouds55_' + nSteps, FS_CLOUDS.replace('${N}', String(nSteps)), { ...p, h: p.horizonY, horizonY: p.horizonY }, Wc, Hc, cache.cloudNew);
         // накопление сбрасываем только при смене геометрии (взгляд, звезда, облачность), а не при подстройке глаза
         const geo = [Wc, Hc, q(p.azView, 0.004), q(p.hs, 0.002), q(p.cumulus, 0.01), q(p.cirrus, 0.01), p.lowQuality ? 1 : 0].join('|');
         const fresh = geo !== cache.cloudGeo || !cache.clouds || cache.clouds.width !== Wc || cache.clouds.height !== Hc;
         cache.cloudGeo = geo;
-        const k = fresh ? 1 : 0.22;
+        const k = fresh ? 1 : 0.3;
         const B = cache.cloudPing = off(cache.cloudPing, Wc, Hc), bc = B.getContext('2d');
         bc.globalCompositeOperation = 'source-over'; bc.globalAlpha = 1; bc.clearRect(0, 0, Wc, Hc);
         if (k < 1) { bc.globalAlpha = 1 - k; bc.drawImage(cache.clouds, 0, 0); }
