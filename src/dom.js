@@ -173,6 +173,7 @@ export const spaceTiltBox = document.getElementById('spaceTiltBox');
 export const milestonesContainer = document.getElementById('milestonesContainer');
 
 export const surfaceTimeToolbar = document.getElementById('surfaceTimeToolbar');
+export const galaxyToolbar = document.getElementById('galaxyToolbar');
 
 export const timeOfDaySlider = document.getElementById('timeOfDaySlider');
 

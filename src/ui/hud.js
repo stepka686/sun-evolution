@@ -1,7 +1,7 @@
 // HUD и панель данных: телеметрия, атмосфера, метки эпох
 import { formatFeH } from '../model/mistTracks.js';
 import { STAR_CATALOG } from '../data/catalog.js';
-import { ageUnitText, atmoEscapeBadge, earthFateBtn, atmoGasBar, atmoGasLegend, barC, barH, barHe, barO, bioBarFill, bioCO2Val, bioEraText, bioO2Val, bioStatusBadge, camHint, cameraHudBadge, closeSidebarBtn, coPctText, esiBadge, esiMarker, esiValueText, fluxBadge, hPctText, hePctText, hudCollapseBtn, hudStack, hzStatusBadge, interstellarBadge, milestonesContainer, phaseDesc, planetAtmoTitle, planetGeoEventText, planetPressureVal, scaleBarCurrentSun, scaleValCurrentSun, sidebar, sidebarToggleBtn, spaceTiltBox, spectralBadge, subAge, subHz, subLum, subMass, subRadius, subTemp, surfaceTempBadge, surfaceTimeToolbar, timeSlider, valAge, valHzDist, valLum, valMass, valRadius, valTemp } from '../dom.js';
+import { ageUnitText, atmoEscapeBadge, earthFateBtn, atmoGasBar, atmoGasLegend, barC, barH, barHe, barO, bioBarFill, bioCO2Val, bioEraText, bioO2Val, bioStatusBadge, camHint, cameraHudBadge, closeSidebarBtn, coPctText, esiBadge, esiMarker, esiValueText, fluxBadge, hPctText, hePctText, hudCollapseBtn, hudStack, hzStatusBadge, interstellarBadge, milestonesContainer, phaseDesc, planetAtmoTitle, planetGeoEventText, planetPressureVal, scaleBarCurrentSun, scaleValCurrentSun, sidebar, sidebarToggleBtn, spaceTiltBox, spectralBadge, subAge, subHz, subLum, subMass, subRadius, subTemp, surfaceTempBadge, surfaceTimeToolbar, galaxyToolbar, timeSlider, valAge, valHzDist, valLum, valMass, valRadius, valTemp } from '../dom.js';
 import { getPlanetDisplayName } from '../model/exoplanets.js';
 import { getActiveStages, getTimeBounds } from '../model/timeline.js';
 import { getMKClass } from '../physics/classification.js';
@@ -57,6 +57,7 @@ export function updateHudVisibility() {
     camHint.style.display = 'none';
     surfaceTimeToolbar.style.display = 'none';
     spaceTiltBox.style.display = 'none';
+    if (galaxyToolbar) galaxyToolbar.style.display = 'none';
   } else if (S.currentView === 'space') {
     if (esiBadge) esiBadge.style.display = 'inline-flex';
     surfaceTempBadge.style.display = 'inline-flex';
@@ -68,6 +69,7 @@ export function updateHudVisibility() {
     camHint.style.display = 'block';
     surfaceTimeToolbar.style.display = 'none';
     spaceTiltBox.style.display = 'flex';
+    if (galaxyToolbar) galaxyToolbar.style.display = 'none';
   } else {
     if (esiBadge) esiBadge.style.display = 'inline-flex';
     surfaceTempBadge.style.display = 'inline-flex';
@@ -79,6 +81,7 @@ export function updateHudVisibility() {
     camHint.style.display = 'none';
     spaceTiltBox.style.display = 'none';
     surfaceTimeToolbar.style.display = (S.currentView === 'surface') ? 'flex' : 'none';
+    if (galaxyToolbar) galaxyToolbar.style.display = (S.currentView === 'galaxy') ? 'flex' : 'none';
     // Автоматически сворачиваем второстепенные плашки при переходе на поверхность, чтобы не закрывать небо
     if (S.currentView === 'surface' && hudStack && !hudStack.dataset.userToggled) {
       hudStack.classList.add('collapsed');
@@ -99,7 +102,7 @@ export function avoidToolbarOverlap() {
   lastOverlapCheck = now;
   const parent = hudStack.offsetParent;
   if (!parent) return;
-  const boxes = [spaceTiltBox, surfaceTimeToolbar].filter(b => b && b.style.display !== 'none' && b.offsetParent);
+  const boxes = [spaceTiltBox, surfaceTimeToolbar, galaxyToolbar].filter(b => b && b.style.display !== 'none' && b.offsetParent);
   const pr = parent.getBoundingClientRect(), hr = hudStack.getBoundingClientRect();
   let top = 10;
   for (const b of boxes) {

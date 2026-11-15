@@ -23,6 +23,7 @@ export function selectStarById(starId) {
       // Возраст по наблюдениям (T_eff, L), если они есть; иначе — заданный вручную
   S.lastAgeFit = star.obs ? fitAgeToObservation(star.obs.T, star.obs.L, star.startAge) : null;
   const age0 = S.lastAgeFit ? S.lastAgeFit.t : star.startAge;
+  S.presentAge = star.id === 'sun' ? 4.57 : age0;   // «сегодня» для выбранной звезды — от него отсчитывается сближение с Андромедой
   S.currentAge = Math.max(bounds.min, Math.min(bounds.max, age0));
       timeSlider.value = ageToSlider(S.currentAge);
 

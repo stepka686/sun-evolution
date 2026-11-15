@@ -27,6 +27,7 @@ import { altAz, bvToTemp, dateLabel, eclToEq, effObliquity, galToEq, skyFrame, s
 import { earthDayHours, rotationHours } from '../physics/rotation.js';
 import { airMass, blackbodyCss, surfaceGravity } from '../physics/optics.js';
 import { S } from '../state.js';
+import { andromedaNow, drawAndromedaSky } from './andromedaSky.js';
 import { rgb, rgba } from '../util/color.js';
 
 const D2R = Math.PI / 180;
@@ -122,7 +123,11 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   const hs = frame.sunAlt;
   // Камера смотрит на азимут звезды; по вертикали — от горизонта до зенита (размеры дисков — в настоящем масштабе)
   const vScale = horizonY * 0.94 / (Math.PI / 2);
-  const azView = frame.sunAz + (S.lookAway ? Math.PI : 0);   // «спиной к звезде» — смотрим на антисолнечную точку
+  // 5.4: Андромеда — где она на небе (кнопка «Андромеда» разворачивает взгляд на неё)
+  const andr = andromedaNow(state.t);
+  const andrEq = galToEq(andr.l, andr.b), andrHz = altAz(andrEq.ra, andrEq.dec, frame.lst, frame.lat);
+  S.andromedaSky = { alt: andrHz.alt, az: andrHz.az, sunAlt: frame.sunAlt, d: andr.d, angR: andr.angR };   // для HUD и проверок
+  const azView = S.lookAt === 'andromeda' ? andrHz.az : frame.sunAz + (S.lookAway ? Math.PI : 0);   // «спиной к звезде» — антисолнечная точка
   const proj = (alt, az) => { let da = az - azView; da = Math.atan2(Math.sin(da), Math.cos(da)); return { x: w / 2 + da * pxPerRad, y: horizonY - alt * vScale }; };
   const projEq = (ra, dec) => { const p = altAz(ra, dec, frame.lst, frame.lat); return { ...proj(p.alt, p.az), alt: p.alt }; };
   const sunP = proj(hs, frame.sunAz);
@@ -224,7 +229,7 @@ export function drawSurfaceView(ctx, w, h, state, now) {
   // 5. Ночное небо: настоящие звёзды (до 5.5ᵐ), созвездия и Млечный Путь вдоль плоскости Галактики.
   //    Предельная звёздная величина зависит от яркости неба; у горизонта звёзды гаснут из-за экстинкции (~0.2ᵐ на воздушную массу)
   const starAlpha = clamp01(1 - skyBright * 5) * (optics.cloud ? 0 : 1);
-  if (starAlpha > 0.02) drawNightSky(ctx, w, horizonY, now, projEq, frame, optics, starAlpha, skyBright);
+  if (starAlpha > 0.02) drawNightSky(ctx, w, h, horizonY, now, projEq, frame, optics, starAlpha, skyBright, andr, pxPerRad);
 
   // 6. Свечение неба вокруг звезды (рассеяние вперёд), закатные цвета берутся из той же модели
   if (!skyGL && !optics.cloud && hs > -0.12 && optics.tauR + (optics.aer ? optics.aer.tau : 0) > 0.003) {
@@ -597,24 +602,27 @@ function drawSkyPlanets(ctx, w, h, state, now, observer, aObs, horizonY, skyBrig
 }
 
 // ---------- ночное небо ----------
-function drawNightSky(ctx, w, horizonY, now, projEq, frame, optics, starAlpha, skyBright) {
+function drawNightSky(ctx, w, h, horizonY, now, projEq, frame, optics, starAlpha, skyBright, andr, pxPerRad) {
   const atm = optics.tauR > 0.01;
   const limit = 6.0 - 11 * skyBright;
   const kExt = atm ? 0.2 * Math.min(4, optics.tauR / 0.097) : 0;
+  // 5.4: Андромеда и судьба Млечного Пути — после слияния полоса диска расплывается в эллиптическую галактику
+  const band = 1 - 0.85 * andr.mw;
   ctx.save();
-  // Млечный Путь: полоса вдоль плоскости Галактики, ярче к центру (Стрелец, l = 0°)
+  // Млечный Путь: полоса вдоль плоскости Галактики, ярче к центру (сегодня — Стрелец, l = 0°)
   ctx.globalCompositeOperation = 'lighter';
   const step = S.lowQuality ? 8 : 4;
   for (let l = 0; l < 360; l += step) {
     const lr = l * D2R, eq = galToEq(lr, 0), p = projEq(eq.ra, eq.dec);
     if (p.alt < -0.1 || p.x < -150 || p.x > w + 150) continue;
-    const bright = 0.35 + 0.65 * Math.pow(Math.cos(lr / 2), 4);
+    const bright = 0.35 + 0.65 * Math.pow(Math.cos((lr - andr.lGC) / 2), 4);   // 5.4: центр полосы — там, где сейчас центр Галактики
     const rad = (60 + 50 * bright) * (horizonY / 500);
     const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
-    const a = 0.06 * bright * starAlpha * (atm ? clamp01(p.alt / 0.35) : 1);
+    const a = 0.06 * bright * band * starAlpha * (atm ? clamp01(p.alt / 0.35) : 1);
     g.addColorStop(0, `rgba(225,215,200,${a.toFixed(3)})`); g.addColorStop(1, 'rgba(225,215,200,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
   }
+  drawAndromedaSky(ctx, { projEq, w, h, pxPerRad, starAlpha, kExt, view: andr });
   // Созвездия
   if (S.showConstellations) {
     ctx.globalCompositeOperation = 'source-over';

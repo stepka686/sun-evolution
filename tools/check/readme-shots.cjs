@@ -52,6 +52,12 @@ fs.mkdirSync(IMG, { recursive: true });
   // 7. Красный гигант с Земли
   await S('S.currentAge = 11.9; S.dayOfYear = 172;');
   await tod(9); await at(20000, 'giant_sky');
+  // 8. Андромеда над Марсом за 0.3 млрд лет до пролёта (сценарий Gaia 2026), режим «Камера»
+  await planet('mars');
+  await p.evaluate(() => { const d = document.getElementById('dayOfYearSlider'); d.value = 220; d.dispatchEvent(new Event('input', { bubbles: true })); });
+  await S('S.currentAge = 8.6; S.andromedaScenario = "gaia2026"; S.lookAt = "andromeda"; S.perception = "camera";');
+  await tod(0); await at(20000, 'andromeda');
+  await S('S.lookAt = null; S.perception = "eye";');
   await b.close();
   // PNG ×2 → JPEG 400 px (лёгкие картинки для README)
   require('child_process').execFileSync('python3', ['-c', `

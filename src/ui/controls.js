@@ -4,6 +4,7 @@ import { dateLabel } from '../render/skyGeometry.js';
 import { auroraBtn, deepTimeBtn, earthFateBtn, hydroEqBadge, hydroEqBtn, pitchSlider, playBtn, playIcon, speedNumber, speedSlider, timeOfDaySlider, timeOfDayVal, timeSlider, toggleCutawayBtn, toggleHelioBtn, toggleHzBtn, viewModeBtns } from '../dom.js';
 import { getTimeBounds } from '../model/timeline.js';
 import { S } from '../state.js';
+import { ANDROMEDA_SCENARIOS } from '../physics/andromeda.js';
 import { applyExpeditionStep } from './expedition.js';
 import { createMilestoneButtons, updateTideButton, updateHUDViewLabels } from './hud.js';
 import { setDeepTime, sliderToAge } from './timeControls.js';
@@ -100,7 +101,18 @@ export function initControls() {
   const pbtn = document.getElementById('perceptionBtn');
   if (pbtn) pbtn.addEventListener('click', () => { S.perception = S.perception === 'camera' ? 'eye' : 'camera'; pbtn.classList.toggle('active', S.perception === 'camera'); pbtn.innerText = S.perception === 'camera' ? '📷 Камера' : '👁 Глаз'; });
   const lbtn = document.getElementById('lookAwayBtn');
-  if (lbtn) lbtn.addEventListener('click', () => { S.lookAway = !S.lookAway; lbtn.classList.toggle('active', S.lookAway); lbtn.innerText = S.lookAway ? '↻ Лицом к звезде' : '↻ Спиной к звезде'; });
+  const abtn = document.getElementById('lookAndromedaBtn');
+  const setAndr = (on) => { S.lookAt = on ? 'andromeda' : null; if (abtn) abtn.classList.toggle('active', on); };
+  if (lbtn) lbtn.addEventListener('click', () => { setAndr(false); S.lookAway = !S.lookAway; lbtn.classList.toggle('active', S.lookAway); lbtn.innerText = S.lookAway ? '↻ Лицом к звезде' : '↻ Спиной к звезде'; });
+  // 5.4: взгляд на Андромеду (по азимуту; по высоте кадр и так от горизонта до зенита)
+  if (abtn) abtn.addEventListener('click', () => setAndr(S.lookAt !== 'andromeda'));
+  // 5.4: сценарий орбиты M31 — HST 2012 → Gaia 2026 → Gaia 2025
+  const sbtn = document.getElementById('andromedaScenarioBtn');
+  if (sbtn) sbtn.addEventListener('click', () => {
+    const order = ['gaia2026', 'gaia2025', 'hst2012'];
+    S.andromedaScenario = order[(order.indexOf(S.andromedaScenario) + 1) % order.length];
+    sbtn.innerText = `🌌 M31: ${ANDROMEDA_SCENARIOS[S.andromedaScenario].name}`;
+  });
   timeOfDaySlider.addEventListener('input', (e) => {
     S.timeOfDay = parseFloat(e.target.value);
     const hrs = Math.floor(S.timeOfDay);

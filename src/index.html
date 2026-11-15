@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#000205">
-  <title>Эволюция Солнца 5.3 — Астрофизическая лаборатория</title>
+  <title>Эволюция Солнца 5.4 — Астрофизическая лаборатория</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -14,7 +14,7 @@
   <header>
     <div class="header-top">
     <div class="title-area">
-        <h1>Эволюция Солнца 5.3</h1>
+        <h1>Эволюция Солнца 5.4</h1>
         <p>Каталог 32 звёзд • Палеоклимат и атмосферы миров • Физическая телеметрия СИ</p>
       </div>
 
@@ -269,6 +269,9 @@
           <label for="pitchSlider">3D:</label>
           <input type="range" id="pitchSlider" min="0" max="75" step="1" value="0">
         </div>
+        <div class="tool-box" id="galaxyToolbar" style="display: none;">
+          <button class="action-btn" id="andromedaScenarioBtn" style="padding: 2px 8px; font-size: 0.7rem;" title="Сценарий орбиты Андромеды: поперечная скорость M31 измерена плохо">🌌 M31: Gaia 2026</button>
+        </div>
         <div class="tool-box" id="surfaceTimeToolbar" style="display: none;">
           <label for="timeOfDaySlider"><span id="timeOfDayVal">12:00</span></label>
           <input type="range" id="timeOfDaySlider" min="0" max="24" step="0.1" value="12.0">
@@ -276,6 +279,7 @@
           <input type="range" id="dayOfYearSlider" min="1" max="365" step="1" value="105">
           <button class="action-btn" id="constellationsBtn" style="padding: 2px 8px; font-size: 0.7rem;">✦ Созвездия</button>
           <button class="action-btn" id="lookAwayBtn" style="padding: 2px 8px; font-size: 0.7rem;" title="Развернуться спиной к звезде">↻ Спиной к звезде</button>
+          <button class="action-btn" id="lookAndromedaBtn" style="padding: 2px 8px; font-size: 0.7rem;" title="Повернуться к галактике Андромеды (M31)">🌌 Андромеда</button>
           <button class="action-btn" id="perceptionBtn" style="padding: 2px 8px; font-size: 0.7rem;" title="Глаз: блик, сумеречное зрение, адаптация. Камера: без особенностей зрения, с лупой для размера диска">👁 Глаз</button>
         </div>
       </div>

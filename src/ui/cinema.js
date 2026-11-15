@@ -6,6 +6,8 @@ import { STAR_CATALOG } from '../data/catalog.js';
 import { getTrackMarks } from '../model/timeline.js';
 import { getRunawayOnset } from '../physics/climate.js';
 import { getPlanetFate } from '../physics/orbits.js';
+import { andromedaOrbit } from '../physics/andromeda.js';
+import { bestAndromedaNight } from '../render/andromedaSky.js';
 
 const HOLD = 2600, MOVE = 3200;   // мс: показ кадра и переход между ними
 let run = null, recorder = null, chunks = [];
@@ -26,6 +28,13 @@ function scenario() {
     add(tRun - 0.05, 'surface', 'жара: океаны на грани кипения', { planet: 'earth', tod: 12 });
     add(tRun + 0.4, 'orbit', 'убегающий парник: океаны выкипели в паровую атмосферу', { planet: 'earth' });
     add(9.0, 'surface', 'марсианский оптимум: оттепель на Марсе', { planet: 'mars', tod: 12 });
+    // 5.4: Андромеда — с Марса (Земля к тому времени под паровой атмосферой и неба не видит)
+    const ao = andromedaOrbit(S.andromedaScenario || 'gaia2026');
+    if (Number.isFinite(ao.tPeri)) {
+      const tA = 4.57 + ao.tPeri - 0.25, n = bestAndromedaNight('mars', tA);
+      if (n) add(tA, 'surface', 'Андромеда на подлёте: спираль в полнеба над Марсом', { planet: 'mars', tod: n.tod, doy: n.doy, lookAt: 'andromeda' });
+    }
+    if (Number.isFinite(ao.tMerge) && ao.tMerge < 8) add(4.57 + ao.tMerge, 'galaxy', 'Млечный Путь и Андромеда слились в одну эллиптическую галактику');
     add(11.7, 'space', 'Солнце становится красным гигантом');
     const fe = getPlanetFate('earth');
     if (fe.type === 'engulfed') add(fe.t - 0.01, 'surface', 'последний закат Земли: Солнце на полнеба', { planet: 'earth', tod: 12 });
@@ -55,6 +64,12 @@ function clickPlanet(planet) {
 function applyKey(k) {
   if (k.planet) clickPlanet(k.planet);
   clickView(k.view);
+  S.lookAt = k.lookAt || null;
+  document.getElementById('lookAndromedaBtn')?.classList.toggle('active', S.lookAt === 'andromeda');
+  if (k.doy !== undefined) {
+    S.dayOfYear = k.doy;
+    const sl = document.getElementById('dayOfYearSlider'); if (sl) sl.value = k.doy;
+  }
   if (k.tod !== undefined) {
     S.timeOfDay = k.tod;
     const sl = document.getElementById('timeOfDaySlider'); if (sl) sl.value = k.tod;

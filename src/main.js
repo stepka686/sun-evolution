@@ -1,5 +1,7 @@
 // Точка входа: инициализация состояния, подписки на события, запуск цикла отрисовки
 import { S } from './state.js';
+// для браузерных проверок (tools/check): состояние доступно из консоли
+if (typeof window !== 'undefined') window.__S = S;
 import { initHud, createMilestoneButtons } from './ui/hud.js';
 import { initCanvas, resizeCanvases } from './ui/canvas.js';
 import { initHr, initHrFullscreen } from './ui/hr.js';

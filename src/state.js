@@ -30,6 +30,9 @@ export const S = {
   dayOfYear: 105,           // день года для вида с поверхности (сезон)
   showConstellations: false,
   lookAway: false,
+  lookAt: null,                // 5.4: 'andromeda' — смотреть на M31
+  presentAge: 4.57,            // 5.4: возраст выбранной звезды «сегодня»
+  andromedaScenario: 'gaia2026', // 5.4: сценарий орбиты M31 (physics/andromeda.js)
   perception: 'eye',           // 5.3.1: 'eye' — как видит глаз (блик, сумеречное зрение, адаптация), 'camera' — без этого
   renderer: 'gl',
   telescopeOpen: false,      // 5.1: панель транзитной спектроскопии            // 5.0: 'gl' — шейдеры на видеокарте, '2d' — прежний рендер на процессоре          // вид с поверхности: спиной к звезде (антисолнечная сторона — радуги, полная Луна)

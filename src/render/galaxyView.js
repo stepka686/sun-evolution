@@ -8,6 +8,7 @@ import { S } from '../state.js';
 import { STAR_POS } from './skyGeometry.js';
 import { STAR_CATALOG } from '../data/catalog.js';
 import { drawGalaxyGL } from '../gl/galaxyGL.js';
+import { ANDROMEDA_SCENARIOS, andromedaOrbit } from '../physics/andromeda.js';
 
 const KPC_KMS_TO_RAD_GYR = 1.0227;           // 1 км/с/кпк = 1.0227 рад/млрд лет
 const R0 = 8.2, V0 = 230;
@@ -198,6 +199,63 @@ function drawVerticalInset(ctx, x0, y0, W, H, t) {
   ctx.restore();
 }
 
+// 5.4: расстояние до Андромеды по времени — три сценария (активный ярче), отметка «сейчас» и слияние
+const ANDR_COL = { hst2012: '#fda4af', gaia2026: '#c4b5fd', gaia2025: '#7dd3fc' };
+function drawAndromedaInset(ctx, x0, y0, W, H, t) {
+  const now0 = S.presentAge ?? T_NOW, key = S.andromedaScenario || 'gaia2026';
+  const t0 = Math.max(0, now0 - 4.6), t1 = now0 + 10;
+  ctx.save();
+  ctx.fillStyle = 'rgba(2,6,23,0.75)'; ctx.strokeStyle = 'rgba(148,163,184,0.35)';
+  ctx.fillRect(x0, y0, W, H); ctx.strokeRect(x0, y0, W, H);
+  const px = x0 + 30, pw = W - 38, py = y0 + 20, ph = H - 34;
+  const X = (tt) => px + (tt - t0) / (t1 - t0) * pw;
+  const DMAX = 1300, Y = (d) => py + ph * (1 - Math.min(d, DMAX) / DMAX);
+  // сетка
+  ctx.font = '9px sans-serif'; ctx.fillStyle = '#64748b'; ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+  for (const d of [0, 500, 1000]) { ctx.beginPath(); ctx.moveTo(px, Y(d)); ctx.lineTo(px + pw, Y(d)); ctx.stroke(); ctx.fillText(String(d), x0 + 4, Y(d) + 3); }
+  for (let k = Math.ceil(t0 / 2) * 2; k <= t1; k += 2) ctx.fillText(String(k), X(k) - 3, py + ph + 11);
+  // кривые: неактивные — тонко, активная — сверху
+  const keys = Object.keys(ANDROMEDA_SCENARIOS).sort((a, b) => (a === key) - (b === key));
+  for (const k of keys) {
+    const o = andromedaOrbit(k), on = k === key;
+    ctx.strokeStyle = ANDR_COL[k]; ctx.globalAlpha = on ? 1 : 0.35; ctx.lineWidth = on ? 1.6 : 1;
+    ctx.beginPath();
+    for (let i = 0; i <= 160; i++) {
+      const tt = t0 + (t1 - t0) * i / 160, y = Y(o.at(tt - now0).d);
+      if (i === 0) ctx.moveTo(X(tt), y); else ctx.lineTo(X(tt), y);
+    }
+    ctx.stroke();
+    if (on && Number.isFinite(o.tMerge) && now0 + o.tMerge < t1) {
+      const mx = X(now0 + o.tMerge), my = Y(0);
+      ctx.beginPath(); ctx.moveTo(mx - 3, my - 3); ctx.lineTo(mx + 3, my + 3); ctx.moveTo(mx + 3, my - 3); ctx.lineTo(mx - 3, my + 3); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  // «сегодня» и текущий момент
+  ctx.strokeStyle = 'rgba(148,163,184,0.5)'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(X(now0), py); ctx.lineTo(X(now0), py + ph); ctx.stroke(); ctx.setLineDash([]);
+  const cur = andromedaOrbit(key).at(t - now0);
+  if (t >= t0 && t <= t1) {
+    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(X(t), Y(cur.d), 3.5, 0, TWO_PI); ctx.fill();
+  }
+  ctx.fillStyle = '#cbd5e1'; ctx.font = '10px sans-serif';
+  ctx.fillText(`До Андромеды, кпк • ${ANDROMEDA_SCENARIOS[key].name} (v⊥ ${ANDROMEDA_SCENARIOS[key].vt} км/с)`, x0 + 8, y0 + 13);
+  ctx.fillStyle = '#64748b'; ctx.font = '9px sans-serif';
+  ctx.restore();
+}
+
+/** Строка сводки про Андромеду */
+function andromedaLine(t) {
+  const now0 = S.presentAge ?? T_NOW, key = S.andromedaScenario || 'gaia2026';
+  const o = andromedaOrbit(key), s = o.at(t - now0), sc = ANDROMEDA_SCENARIOS[key];
+  const ly = (d) => d * 3261.6;
+  if (s.merged) return `Андромеда слилась с Галактикой (${sc.name}): вместо спирали — эллиптическая галактика`;
+  const dist = ly(s.d) > 1e6 ? `${(ly(s.d) / 1e6).toFixed(2)} млн св. лет` : `${Math.round(ly(s.d) / 1000)} тыс. св. лет`;
+  const left = o.tMerge - (t - now0);
+  const merge = Number.isFinite(o.tMerge) && o.tMerge <= 10 ? `слияние через ${left.toFixed(1)} млрд лет` : 'слияния за 10 млрд лет нет';
+  return `Андромеда: ${Math.round(s.d)} кпк (${dist}) • ${merge}`;
+}
+
 export function drawGalaxyView(ctx, w, h, state, now) {
   const t = S.isDeepTime ? state.t : S.currentAge;
   ctx.fillStyle = '#020309'; ctx.fillRect(0, 0, w, h);
@@ -250,15 +308,18 @@ export function drawGalaxyView(ctx, w, h, state, now) {
     `Галактический год ≈ ${Math.round(GALACTIC_YEAR * 1000)} млн лет • V = ${V0} км/с • R = ${R0} кпк`,
     `Солнце сделало ${sun.orbits.toFixed(1)} оборота вокруг центра Галактики`,
     inArm ? `Сейчас Солнце внутри рукава ${arm.name}: чаще вспышки сверхновых рядом, гуще облака` : `Ближайший рукав — ${arm.name}, ${arm.d.toFixed(1)} кпк по радиусу`,
-    `Узор рукавов отстаёт от звёзд: Солнце проходит рукав раз в ~${Math.round(2 * Math.PI / 4 / (OMEGA_SUN - OMEGA_P) * 1000)} млн лет`
+    `Узор рукавов отстаёт от звёзд: Солнце проходит рукав раз в ~${Math.round(2 * Math.PI / 4 / (OMEGA_SUN - OMEGA_P) * 1000)} млн лет`,
+    andromedaLine(t)
   ];
   // вставки
   let ix, iy, iw, ih;
-  if (landscape) { ix = gSize + 24; iw = w - ix - 10; iy = 10; ih = (h - 30 - lines.length * 15) / 2 - 6; }
-  else { ix = 8; iw = w - 16; iy = gSize + 18; ih = Math.max(90, (h - iy - lines.length * 15 - 24) / 2 - 4); }
-  if (iw > 160 && ih > 70) {
+  // 5.4: третья вставка — расстояние до Андромеды
+  if (landscape) { ix = gSize + 24; iw = w - ix - 10; iy = 10; ih = (h - 36 - lines.length * 15) / 3 - 6; }
+  else { ix = 8; iw = w - 16; iy = gSize + 18; ih = Math.max(64, (h - iy - lines.length * 15 - 72) / 3); }
+  if (iw > 160 && ih > 60) {
     drawNearbyMap(ctx, ix, iy, iw, ih, now);
     drawVerticalInset(ctx, ix, iy + ih + 8, iw, Math.min(ih, 140), t);
+    drawAndromedaInset(ctx, ix, iy + ih + 8 + Math.min(ih, 140) + 8, iw, Math.min(ih, 160), t);
   }
   ctx.font = '11px sans-serif';
   const bw = Math.min(w - 16, Math.max(...lines.map(l => ctx.measureText(l).width)) + 14);
